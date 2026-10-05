@@ -1,5 +1,9 @@
 # Backend Integration
 
+Cap nhat 05/10/2026: uu tien 1-6 da co code UI/API. Doc
+[Operations Rollout](operations-rollout.md) cho rules, env, tests va checklist deploy.
+Schema/ledger moi chi duoc dong bo o local; chua ap dung vao Supabase trong dot nay.
+
 Cap nhat 04/10/2026. Stack theo yeu cau: NestJS, TypeScript, TypeORM
 synchronize, Supabase PostgreSQL, JWT; seed mock cu va luu anh tren backend.
 Giu giao dien frontend. Tai lieu nay thay hien trang preview trong api-handoff.md.
@@ -51,9 +55,11 @@ goi synchronize() khi DB_SYNCHRONIZE=true, khong dropSchema/migration.
 SYNCHRONIZE CO THE LAM MAT DU LIEU KHI DOI ENTITY: backup truoc thay doi,
 khong xem cau hinh nay la an toan production.
 
-11 bang: products, categories, customers, users, sessions, orders, approvals,
-receipts, audit_events, leads, newsletter_subscriptions. Ownership/branch/version/timestamps la columns;
-payload JSONB giu contract mock. Chua normalized ledger/FK day du.
+11 bang ban dau: products, categories, customers, users, sessions, orders, approvals,
+receipts, audit_events, leads, newsletter_subscriptions. Them 8 bang operations:
+price_policies, inventory_balances, credit_balances, ledger_entries, password_resets,
+integration_links, integration_runs, integration_outbox. Tong 19 bang khi deploy schema moi.
+Ownership/branch/version/timestamps la columns; payload JSONB giu contract mock.
 Commands validate references va transaction tren server.
 
 63 SKU, 8 categories, 7 B2B customers, 18 orders, 3 approvals export tu
@@ -62,8 +68,9 @@ lib/catalog.ts va lib/admin-preview.ts o goc repo FE bang
 INSERT ON CONFLICT DO NOTHING, khong overwrite khi restart,
 khong lay localStorage lam seed; seed bi cam o production.
 Seed orders bo sung **pickup details minh hoa** tu contact fixture va note
-seed; phone khach le demo, khong che dia chi giao that. Stock/debt la snapshot
-mock. Guide/slide/solutions/reviews van o frontend, chua co CMS API.
+seed; phone khach le demo, khong che dia chi giao that. Snapshot stock/debt la
+so du dau ky; giao dich moi dung ledger va reservations. Stock fallback chi Quy Nhon.
+Guide/slide/solutions/reviews van o frontend, chua co CMS API.
 
 ## Auth Va Quyen
 
@@ -92,11 +99,14 @@ B2B khong co admin access. Branch chi thao tac theo user.branches.
 Kho bi redaction prices/debt/approvals/receipts, UI chi mo kho. Staff khac
 hien co read model chung theo branch; server gioi han write roles. Mot so
 nut van hien cho role khong du quyen va tra 403; can permission-aware UI
-chi tiet truoc production. Chua co user/role management screen.
+chi tiet truoc production. /admin/users da co tao/sua/vai tro/chi nhanh/disable/reset
+password; doi thong tin quyen/mat khau thu hoi sessions. Can giu it nhat mot admin active.
 
 Writes can Origin trong FRONTEND_ORIGINS va X-BaoTin-Client:web; DTO
 whitelist/forbidNonWhitelisted. Auth/register/upload co rate limit.
-Production can HTTPS + COOKIE_SECURE=true; chua co MFA/recovery email.
+Production can HTTPS; cookie Secure tu dong o production. Da co change-password
+va recovery email token mot lan, TTL 30 phut; can SMTP_URL/EMAIL_FROM/FRONTEND_URL.
+Chua co MFA. Khong cau hinh SMTP thi tra 503, khong bao gui email thanh cong gia.
 
 ## API Contract
 
@@ -114,7 +124,7 @@ Production can HTTPS + COOKIE_SECURE=true; chua co MFA/recovery email.
 | GET | /api/orders | Own B2B hoac guest orders |
 | GET | /api/admin/state | Scoped state, today server |
 | POST | /api/admin/commands | action/branch/id?/expectedRevision?/payload |
-| GET | /api/account | Profile/preferences/own reconciled payments |
+| GET | /api/account | Profile/preferences/own credit ledger entries |
 | PATCH | /api/account/profile | name/company/phone/email/tax/address |
 | PATCH | /api/account/preferences | addresses/settings/favorites |
 | POST | /api/media/products/:id/image | Multipart image, authorized staff |
@@ -125,20 +135,23 @@ Production can HTTPS + COOKIE_SECURE=true; chua co MFA/recovery email.
 Gia/stock/phi/coupon tinh server, khong nhan unitPrice/total/customerId.
 expectedTotal de phat hien gia doi. Idempotency-Key UUID bat buoc, unique DB;
 cung request tra cung don, khac body/owner tra 409. Checkout/admin/account
-chung orders service. Website order chua ho tro sua o Sales editor (can requote
-policy). Sales form tao ho chua tinh shipping/coupon/thue.
+chung orders service. Website order cho xac nhan, khong gan approval, da ho tro
+sua o Sales editor qua /api/admin/orders/quote; expectedTotal/revision bat buoc khi sua.
+Shipping/coupon tinh lai o server; khong doi customer/source. Sales-only giu price snapshot.
+Tax theo business policy hien tai chua tach rieng.
 
 14 admin commands xem src/admin/admin.dto.ts, rules xem src/admin/rules/.
 Order commands can expectedRevision, stale tra 409. PostgreSQL advisory
 transaction lock serialize pilot commands (mot lock/DB); can row locks khi scale.
 Price/credit approval co snapshot, khong tu confirm/xuat kho. Receipt validate
-amount/reference, reconcile/void/audit persisted; KHONG tru opening debt mock.
+amount/reference, reconcile/void/audit persisted; doi chieu tru debt cua don cong no,
+void hoan lai mot lan. Confirm giu stock/han muc; ban giao moi tru ton va ghi no.
 Ngay admin va receipts lay server time Asia/Ho_Chi_Minh, khong previewDate.
 
 ## Media
 
 Anh goc da chuyen frontend/public/images -> media/images trong repo BE, relative
-URL /images/* duoc Next rewrite. Upload /media/uploads/UUID.webp, URL luu
+URL /images/* duoc Next Route Handler proxy. Upload /media/uploads/UUID.webp, URL luu
 Product.image/gallery, binary luu disk backend, khong luu PostgreSQL.
 Max5MB JPEG/PNG/WebP, Sharp validate bytes max20MP, rotate, resize<=2000px,
 encodeWebP; bo filename client, khong SVG. Admin products co upload control.
@@ -170,16 +183,18 @@ Hai bo test ghi/xoa du lieu va chi duoc chay voi API `dev:local` + database
 API local cho connected QA. Hostname API localhost khong co nghia DB local.
 Preview QA cu can API_MODE=false, khong chung assertion cho API mode.
 
-Chua production-ready: can KiotViet sync,
-gia group/customer/effectivity, stock theo branch + tru/hoan ton, credit ledger
-va reserve han muc cac don dang mo (hien guard chi snapshot mock), bank/refund,
-notifications, CMS/reviews, password recovery/MFA, staff management, fine-grained
-read permissions, pagination/OpenAPI, deployment/backup/observability.
+Chua production-ready: KiotViet connector da co preview/mapping/gia retail/export
+va outbox doi chieu, nhung chua co credentials de kiem tra vendor that. Chua tu dong
+sync stock/debt/status, return/refund/bank, notifications, CMS/reviews, MFA,
+fine-grained read permissions, pagination/OpenAPI, deployment/backup/observability.
+Gia branch/group/customer/effectivity, ledger/reservations, staff management,
+change-password/recovery va sua don website da implement; xem operations-rollout.md.
 Contact/newsletter da luu DB, chua gui email/thong bao va chua co man hinh
 xu ly leads. Reviews submit tren product van la preview client, khong persisted.
-Frontend Next.js 14.2.35 hien bi npm audit bao high/critical. Can nang len
-ban patched duoc ho tro va regression-test truoc deploy; chua lam major
-framework upgrade trong dot noi API nay. Backend runtime audit hien 0 vulnerabilities.
+Frontend da nang Next.js 16.3.8, React 19.3.0; SSR/async params/images va UI
+regression da test. Runtime audit FE/BE hien 0 vulnerabilities. FE full audit con
+7 high trong dev glob tools/braces chua co ban fix; khong audit fix --force downgrade.
+Gui email va KiotViet that van can credentials/acceptance; khong chay test tren Supabase.
 Khong mo ban that chi vi local tests pass hoac Supabase da ket noi.
 
 DB credential da gui qua chat: nen rotate password va cap nhat ignored env;

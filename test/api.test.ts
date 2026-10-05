@@ -31,6 +31,7 @@ test("Connected API: auth, ownership, server prices, Sales, approvals, warehouse
   const orderIds: string[] = [], receiptIds: string[] = [], approvalIds: string[] = [];
   let registeredId = "", customerId = "", uploaded = "", originalProduct: unknown, originalProfile: unknown, leadId = "", newsletterEmail = "";
   const productId = "LED-12V-8W";
+  const inventory = (await sql.query(`SELECT * FROM "${schema}".inventory_balances WHERE id=$1`, [`Quy Nhơn:${productId}`])).rows[0];
   try {
     const catalog = (await guest.call("/catalog")).data;
     assert.equal(catalog.products.length, 63); assert.equal(catalog.categories.length, 8);
@@ -161,6 +162,9 @@ test("Connected API: auth, ownership, server prices, Sales, approvals, warehouse
       assert.equal((await b2b.call("/account")).response.status, 401);
     });
   } finally {
+    await sql.query(`DELETE FROM "${schema}".ledger_entries WHERE reference=ANY($1)`, [orderIds.map(id => `order:${id}:stock:${productId}`)]);
+    if (inventory) await sql.query(`UPDATE "${schema}".inventory_balances SET "onHand"=$1 WHERE id=$2`, [inventory.onHand, inventory.id]);
+    else await sql.query(`DELETE FROM "${schema}".inventory_balances WHERE id=$1`, [`Quy Nhơn:${productId}`]);
     if (originalProduct) await sql.query(`UPDATE "${schema}".products SET data=$1,published=true WHERE id=$2`, [originalProduct, productId]);
     else await sql.query(`UPDATE "${schema}".products SET published=true WHERE id=$1`, [productId]);
     if (uploaded) await unlink(resolve("media", uploaded.replace("/media/", ""))).catch(() => {});

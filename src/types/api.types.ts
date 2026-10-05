@@ -6,6 +6,7 @@ export type ApiAdminState = {
   products: (Product & { published: boolean })[]; customers: AdminCustomer[];
   orders: AdminOrder[]; approvals: AdminApproval[]; warehouse: Record<string, WarehouseRecord>;
   receipts: Receipt[]; paymentDueDates: Record<string, string>; today: string;
+  stockByBranch?: Record<string, Record<string, number>>;
 };
 export type ApiSession = { user: SessionUser | null };
 export type CatalogResponse = { products: Product[]; categories: Category[] };

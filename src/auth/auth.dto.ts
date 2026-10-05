@@ -12,3 +12,12 @@ export class RegisterDto {
   @IsEmail() @Length(3, 160) email!: string;
   @IsString() @Length(8, 128) password!: string;
 }
+export class ChangePasswordDto {
+  @IsString() @Length(8, 128) currentPassword!: string;
+  @IsString() @Length(12, 128) password!: string;
+}
+export class ForgotPasswordDto { @IsEmail() @Length(3, 160) email!: string; }
+export class ResetPasswordDto {
+  @IsString() @Matches(/^[a-f0-9]{64}$/) token!: string;
+  @IsString() @Length(12, 128) password!: string;
+}

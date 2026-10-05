@@ -7,6 +7,7 @@ export type ApprovalSnapshot =
   | { kind: "price"; lines: ApprovalPriceLine[]; total: number; requestedTotal: number }
   | { kind: "credit"; items: { productId: string; quantity: number }[]; amount: number; debt: number; limit: number; overdue: number };
 export type ApprovalDraft = { type: ApprovalType; reason: string; prices: Record<string, number> };
+export const creditExposure = (customer: AdminCustomer) => customer.debt + (customer.creditReserved || 0);
 
 export function latestOrderApprovals(order: AdminOrder, approvals: AdminApproval[]) {
   const seen = new Set<ApprovalType>();
@@ -41,7 +42,7 @@ export function approvalRequestBlocker(order: AdminOrder | undefined, customer: 
   const existing = latestOrderApprovals(order, approvals).find((item) => item.type === type);
   if (existing && existing.status !== "Từ chối") return existing.status === "Chờ duyệt" ? "Đã có yêu cầu cùng loại đang chờ duyệt." : "Đơn đã được duyệt ngoại lệ cùng loại.";
   if (type === "Công nợ" && (!order.credit || customer.limit <= 0)) return "Chỉ xin ngoại lệ cho đơn công nợ B2B đã có hạn mức.";
-  if (type === "Công nợ" && !customer.overdue && customer.debt + order.total <= customer.limit) return "Đơn đang trong hạn mức, không cần xin ngoại lệ công nợ.";
+  if (type === "Công nợ" && !customer.overdue && creditExposure(customer) + order.total <= customer.limit) return "Đơn đang trong hạn mức, không cần xin ngoại lệ công nợ.";
   return "";
 }
 
@@ -60,7 +61,7 @@ export function buildApprovalRequest(order: AdminOrder, customer: AdminCustomer,
     const snapshot = priceSnapshot(order, draft.prices);
     return snapshot ? { snapshot } : { error: "Giá đề nghị phải là số nguyên dương, không vượt giá hiện tại và có ít nhất một SKU giảm giá." };
   }
-  return { snapshot: { kind: "credit", items: order.items.map(({ productId, quantity }) => ({ productId, quantity })), amount: order.total, debt: customer.debt, limit: customer.limit, overdue: customer.overdue } };
+  return { snapshot: { kind: "credit", items: order.items.map(({ productId, quantity }) => ({ productId, quantity })), amount: order.total, debt: creditExposure(customer), limit: customer.limit, overdue: customer.overdue } };
 }
 
 export function approvalDecisionBlocker(approval: AdminApproval, order: AdminOrder | undefined, customer: AdminCustomer | undefined, approvals: AdminApproval[]) {
@@ -69,6 +70,7 @@ export function approvalDecisionBlocker(approval: AdminApproval, order: AdminOrd
   if (latestOrderApprovals(order, approvals).find((item) => item.type === approval.type)?.id !== approval.id) return "Yêu cầu đã được thay bằng đề nghị mới.";
   if (!approvalMatchesOrder(approval, order)) return "Nội dung đơn không khớp yêu cầu, cần gửi lại đề nghị.";
   if (approval.snapshot?.kind === "credit" && order.total > approval.snapshot.amount) return "Giá trị đơn vượt phạm vi công nợ đề nghị.";
+  if (approval.snapshot?.kind === "credit" && (creditExposure(customer) > approval.snapshot.debt || customer.limit < approval.snapshot.limit || customer.overdue > approval.snapshot.overdue)) return "Công nợ hoặc hạn mức đã thay đổi. Cần gửi lại đề nghị.";
   return "";
 }
 

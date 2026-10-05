@@ -13,8 +13,10 @@ import { collectible, reconciliationBlocker, validAccountingDate, validateReceip
 import { orderBlocker } from "./rules/order.rules";
 import { DatabaseService } from "../database/database.service";
 import { ApprovalEntity, AuditEntity, CustomerEntity, OrderEntity, ProductEntity, ReceiptEntity, UserEntity } from "../database/entities";
-import { businessDate } from "../orders/orders.service";
-import { AdminCommandDto, ApprovalDto, DecisionDto, DueDto, NoteDto, PickDto, PublishDto, ReasonDto, ReceiptDto, ReconcileDto, SalesDto, ShortageDto, StatusDto } from "./admin.dto";
+import { businessDate, shippingCost } from "../orders/orders.service";
+import { AdminCommandDto, ApprovalDto, DecisionDto, DueDto, NoteDto, PickDto, PublishDto, ReasonDto, ReceiptDto, ReconcileDto, SalesDto, SalesQuoteDto, ShortageDto, StatusDto } from "./admin.dto";
+import { PricePolicyService } from "../catalog/price-policy.service";
+import { LedgerService } from "../ledger/ledger.service";
 
 const permission: Record<AdminCommandDto["action"], StaffRole[]> = {
   "save-order": ["sales"], "advance-order": ["sales", "warehouse"], "cancel-order": ["sales"],
@@ -29,26 +31,29 @@ function input<T extends object>(type: new () => T, value: Record<string, unknow
   return object;
 }
 function fail(message: string) { if (message) throw new ConflictException(message); }
-function effectiveOrder(row: OrderEntity, approvals: ApiAdminState["approvals"]): AdminOrder {
+export function effectiveOrder(row: OrderEntity, approvals: ApiAdminState["approvals"]): AdminOrder {
   const order = applyApprovedPrice(row.data, approvals);
   const subtotal = order.items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0);
-  const total = row.checkout ? subtotal + row.checkout.shipping - (row.checkout.discount ? Math.min(100000, Math.round(subtotal * 0.1)) : 0) : order.total;
+  const total = row.checkout ? subtotal + row.checkout.shipping - (row.checkout.coupon === "BAOTIN10" || row.checkout.discount ? Math.min(100000, Math.round(subtotal * 0.1)) : 0) : order.total;
   const linked = latestOrderApprovals(order, approvals);
-  return { ...order, total, revision: row.revision, approvalId: linked.find((item) => item.status !== "Đã duyệt")?.id || linked[0]?.id || order.approvalId };
+  return { ...order, total, website: !!row.checkout, shipping: row.checkout?.shipping || 0, discount: row.checkout ? subtotal + row.checkout.shipping - total : 0, revision: row.revision, approvalId: linked.find((item) => item.status !== "Đã duyệt")?.id || linked[0]?.id || order.approvalId };
 }
 
 @Injectable()
 export class AdminService {
-  constructor(private readonly db: DatabaseService) {}
+  constructor(private readonly db: DatabaseService, private readonly pricing: PricePolicyService, private readonly ledger: LedgerService) {}
   assertStaff(user: UserEntity) { if (user.role === "b2b") throw new ForbiddenException("Chỉ dành cho nhân viên."); }
   async state(user: UserEntity, manager = this.db.source.manager, redact = true): Promise<ApiAdminState> {
     this.assertStaff(user);
     const approvals = (await manager.getRepository(ApprovalEntity).find()).filter((row) => user.branches.includes(row.branch as never)).map((row) => row.data);
     const rows = (await manager.getRepository(OrderEntity).find({ order: { createdAt: "ASC" } })).filter((row) => user.branches.includes(row.branch as never));
     const orders = rows.map((row) => effectiveOrder(row, approvals));
+    const stockByBranch: Record<string, Record<string, number>> = {};
+    const products = (await manager.getRepository(ProductEntity).find()).map(row => ({ ...row.data, published: row.published }));
+    for (const branch of user.branches) stockByBranch[branch] = Object.fromEntries((await this.ledger.stock(products, branch, manager)).map(product => [product.id, product.stock]));
     const result: ApiAdminState = {
-      products: (await manager.getRepository(ProductEntity).find()).map((row) => ({ ...row.data, published: row.published })),
-      customers: (await manager.getRepository(CustomerEntity).find()).filter((row) => user.branches.includes(row.branch as never)).map((row) => row.data),
+      products, stockByBranch,
+      customers: await this.ledger.customers((await manager.getRepository(CustomerEntity).find()).filter(row => user.branches.includes(row.branch as never)).map(row => row.data), manager),
       orders, approvals, warehouse: Object.fromEntries(rows.map((row) => [row.id, row.warehouse])),
       receipts: (await manager.getRepository(ReceiptEntity).find()).filter((row) => user.branches.includes(row.branch as never)).map((row) => row.data),
       paymentDueDates: Object.fromEntries(rows.filter((row) => row.dueDate).map((row) => [row.id, row.dueDate!])), today: businessDate()
@@ -56,17 +61,35 @@ export class AdminService {
     if (redact && user.role === "warehouse") {
       result.orders = result.orders.filter(isWarehouseOrder).map((order) => ({ ...order, total: 0, items: order.items.map((item) => ({ ...item, unitPrice: 0 })) }));
       result.products = result.products.map((product) => ({ ...product, price: 0, oldPrice: undefined, customerPrice: undefined }));
-      result.customers = result.customers.map((customer) => ({ ...customer, limit: 0, debt: 0, overdue: 0 }));
+      result.customers = result.customers.map((customer) => ({ ...customer, limit: 0, debt: 0, overdue: 0, creditReserved: 0 }));
       result.approvals = []; result.receipts = []; result.paymentDueDates = {};
       result.warehouse = Object.fromEntries(Object.entries(result.warehouse).filter(([id]) => result.orders.some((order) => order.id === id)));
     }
     return result;
+  }
+  async salesQuote(user: UserEntity, input: SalesQuoteDto, manager = this.db.source.manager) {
+    if (!["admin", "boss", "sales"].includes(user.role) || !user.branches.includes(input.branch)) throw new ForbiddenException();
+    const previous = input.id ? await manager.getRepository(OrderEntity).findOneBy({ id: input.id, branch: input.branch }) : null;
+    if (input.id && (!previous || previous.data.status !== "Chờ xác nhận")) throw new ConflictException("Đơn không còn chờ xác nhận.");
+    if (previous && (previous.customerId !== (input.customerId || null) || previous.data.source !== input.source)) throw new BadRequestException("Không được đổi khách hoặc nguồn đơn.");
+    const customers = (await manager.getRepository(CustomerEntity).find({ where: { branch: input.branch } })).map(row => row.data);
+    const customer = customers.find(row => row.id === input.customerId);
+    const products = await this.pricing.personalize(await this.ledger.stock((await manager.getRepository(ProductEntity).find({ where: { published: true } })).map(row => row.data), input.branch, manager), customer, manager);
+    // Website edits requote every line; Sales-only edits preserve their original price snapshots.
+    const base = previous?.checkout ? { ...previous.data, items: [] } : previous?.data;
+    const result = validateSalesDraft(input, input.branch, customers, products, base);
+    if (!result.data) throw new BadRequestException(result.error);
+    const shipping = previous?.checkout ? shippingCost(result.data.details.delivery) : 0;
+    const discount = previous?.checkout?.coupon === "BAOTIN10" || previous?.checkout?.discount ? Math.min(100000, Math.round(result.data.total * 0.1)) : 0;
+    if (!Number.isSafeInteger(result.data.total + shipping - discount) || result.data.total < 1) throw new BadRequestException("Giá trị đơn vượt giới hạn. Giảm số lượng hoặc liên hệ Sales.");
+    return { ...result.data, subtotal: result.data.total, shipping, discount, total: result.data.total + shipping - discount };
   }
   async command(user: UserEntity, command: AdminCommandDto) {
     this.assertStaff(user);
     if (!user.branches.includes(command.branch) || (user.role !== "admin" && !permission[command.action].includes(user.role as StaffRole))) throw new ForbiddenException("Không có quyền thao tác tại chi nhánh này.");
     return this.db.transaction(async (manager) => {
       const state = await this.state(user, manager, false);
+      state.products = state.products.map(product => ({ ...product, stock: state.stockByBranch?.[command.branch]?.[product.id] ?? 0 }));
       const orders = manager.getRepository(OrderEntity);
       let resourceId = command.id || "";
       const orderFor = async (id: string) => {
@@ -82,13 +105,13 @@ export class AdminService {
           const draft = input(SalesDto, command.payload);
           const previous = command.id ? await orderFor(command.id) : undefined;
           if (previous && (previous.order.status !== "Chờ xác nhận" || previous.order.approvalId || previous.order.customerId !== (draft.customerId || null) || previous.order.source !== draft.source || !draft.reason?.trim())) throw new ConflictException("Chỉ sửa đơn pending chưa có yêu cầu duyệt, cần giữ nguồn/khách và nhập lý do.");
-          if (previous?.row.checkout) throw new ConflictException("Đơn website cần quy trình báo giá lại khi sửa; chưa hỗ trợ sửa tại màn hình này.");
-          const result = validateSalesDraft(draft, command.branch, state.customers, state.products.filter((product) => product.published), previous?.order);
-          if (!result.data) throw new BadRequestException(result.error);
+          const data = await this.salesQuote(user, { ...draft, branch: command.branch, id: command.id }, manager);
+          if ((previous?.row.checkout || draft.expectedTotal !== undefined) && draft.expectedTotal !== data.total) throw new ConflictException("Giá đã thay đổi. Cập nhật báo giá trước khi lưu.");
           const customer = state.customers.find((item) => item.id === draft.customerId);
           resourceId = previous?.row.id || `BT-${randomUUID().slice(0, 8).toUpperCase()}`;
           const row = previous?.row || orders.create({ id: resourceId, branch: command.branch, customerId: customer?.id || null, guestId: null, idempotencyKey: null, checkout: null, dueDate: null, warehouse: { checks: {}, history: [] } });
-          row.data = { ...(previous?.order || { id: resourceId, branch: command.branch, customerId: customer?.id || null, customerName: customer?.name || result.data.details.recipient, date: businessDate(), channel: customer ? "B2B" : "B2C", source: draft.source, status: "Chờ xác nhận" }), ...result.data };
+          row.data = { ...(previous?.order || { id: resourceId, branch: command.branch, customerId: customer?.id || null, customerName: customer?.name || data.details.recipient, date: businessDate(), channel: customer ? "B2B" : "B2C", source: draft.source, status: "Chờ xác nhận" }), items: data.items, details: data.details, credit: data.credit, total: data.total };
+          if (row.checkout) row.checkout = { ...row.checkout, items: data.items, subtotal: data.subtotal, shipping: data.shipping, discount: data.discount, total: data.total, customer: { ...row.checkout.customer, name: data.details.recipient, phone: data.details.phone, address: data.details.address, city: "", district: "", ward: "" }, delivery: data.details.delivery, payment: data.details.payment, note: data.details.note };
           history(row, previous ? "Đã sửa đơn" : "Inside Sales tạo đơn", draft.reason || draft.source);
           await orders.save(row);
           break;
@@ -100,12 +123,18 @@ export class AdminService {
           if (user.role === "warehouse" && !isWarehouseOrder(order)) throw new ForbiddenException("Kho chỉ thao tác đơn đã xác nhận, chưa bàn giao.");
           if (order.status === "Chờ xác nhận") {
             if (!order.details) throw new ConflictException("Bổ sung thông tin giao hàng/thanh toán trước khi xác nhận.");
-            const reserved = state.orders.filter((item) => item.id !== order.id && !["Chờ xác nhận", "Đã hủy", "Hoàn tất"].includes(item.status));
-            const stock = state.products.map((product) => ({ ...product, stock: Math.max(0, product.stock - reserved.reduce((sum, item) => sum + (item.items.find((line) => line.productId === product.id)?.quantity || 0), 0)) }));
-            fail(orderBlocker(order, state.customers, state.approvals, stock));
+            fail(orderBlocker(order, state.customers, state.approvals, state.products));
             if (order.items.some((item) => !state.products.some((product) => product.id === item.productId && product.published))) throw new ConflictException("Đơn có sản phẩm đang ẩn.");
           } else fail(warehouseBlocker(order, row.warehouse));
           const status = orderStages[orderStages.indexOf(order.status) + 1];
+          if (status === "Đang giao") {
+            if (order.credit && order.customerId) {
+              const customer = state.customers.find(customer => customer.id === order.customerId)!;
+              if (customer.status !== "Đang hoạt động") throw new ConflictException("Tài khoản B2B đã tạm ngưng; cần Sales kiểm tra trước khi bàn giao.");
+              if (!row.dueDate) { const due = new Date(`${businessDate()}T00:00:00Z`); due.setUTCDate(due.getUTCDate() + (customer.termsDays ?? 30)); row.dueDate = due.toISOString().slice(0, 10); }
+            }
+            await this.ledger.handoff(manager, order, user.id);
+          }
           row.data = { ...order, status };
           if (order.status === "Chờ soạn hàng") row.warehouse.checks = {};
           history(row, status);
@@ -127,7 +156,7 @@ export class AdminService {
           if (!result.snapshot) throw new BadRequestException(result.error);
           if (row.checkout && result.snapshot.kind === "price") {
             const subtotal = result.snapshot.lines.reduce((sum, item) => sum + item.quantity * item.requestedPrice, 0);
-            result.snapshot.requestedTotal = subtotal + row.checkout.shipping - (row.checkout.discount ? Math.min(100000, Math.round(subtotal * 0.1)) : 0);
+            result.snapshot.requestedTotal = subtotal + row.checkout.shipping - (row.checkout.coupon === "BAOTIN10" || row.checkout.discount ? Math.min(100000, Math.round(subtotal * 0.1)) : 0);
           }
           resourceId = `YC-${randomUUID().slice(0, 8).toUpperCase()}`;
           await manager.getRepository(ApprovalEntity).save({ id: resourceId, branch: command.branch, data: { id: resourceId, orderId: order.id, customerId: customer.id, branch: command.branch, type: draft.type, reason: draft.reason.trim(), requestedBy: user.name, createdAt: new Date().toISOString(), status: "Chờ duyệt", snapshot: result.snapshot } });
@@ -186,10 +215,13 @@ export class AdminService {
             const order = state.orders.find((item) => item.id === row.data.orderId);
             if (!order || !collectible(order)) throw new ConflictException("Đơn không hợp lệ để thu tiền.");
             fail(reconciliationBlocker(row.data, check.amount, check.reference, check.note, state.receipts));
+            await this.ledger.receipt(manager, order, row.id, row.data.amount, user.id);
             row.data = { ...row.data, status: "Đã đối chiếu", reconciliation: { ...check, reference: check.reference.trim(), note: check.note.trim(), at: new Date().toISOString() } };
           } else {
             const { reason } = input(ReasonDto, command.payload);
             if (row.data.status === "Đã hủy" || !reason.trim()) throw new ConflictException("Phiếu đã hủy hoặc thiếu lý do.");
+            const order = state.orders.find(item => item.id === row.data.orderId);
+            if (order && row.data.status === "Đã đối chiếu") await this.ledger.receipt(manager, order, row.id, row.data.amount, user.id, true);
             row.data = { ...row.data, status: "Đã hủy", cancellation: { reason: reason.trim(), at: new Date().toISOString() } };
           }
           await manager.getRepository(ReceiptEntity).save(row); break;

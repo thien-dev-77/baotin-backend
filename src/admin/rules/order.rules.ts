@@ -1,4 +1,4 @@
-import { approvalMatchesOrder, latestOrderApprovals } from "./approval.rules";
+import { approvalMatchesOrder, latestOrderApprovals, creditExposure } from "./approval.rules";
 import type { AdminOrder, AdminCustomer, AdminApproval, Product } from "../../types/domain.types";
 
 export function orderBlocker(order: AdminOrder, customers: AdminCustomer[], approvals: AdminApproval[], products: Product[]) {
@@ -10,7 +10,7 @@ export function orderBlocker(order: AdminOrder, customers: AdminCustomer[], appr
   if (linked.some((item) => item.status === "Từ chối")) return "Yêu cầu ngoại lệ đã bị từ chối.";
   if (linked.some((item) => item.status === "Chờ duyệt")) return "Cần duyệt ngoại lệ trước khi xác nhận đơn.";
   const creditApproval = linked.find((item) => item.type === "Công nợ" && item.status === "Đã duyệt");
-  const creditAllowed = creditApproval && (creditApproval.snapshot?.kind !== "credit" || order.total <= creditApproval.snapshot.amount);
-  if (order.credit && customer && (customer.overdue > 0 || customer.debt + order.total > customer.limit) && !creditAllowed) return "Công nợ vượt hạn mức hoặc quá hạn, cần duyệt ngoại lệ.";
+  const creditAllowed = creditApproval && (creditApproval.snapshot?.kind !== "credit" || order.total <= creditApproval.snapshot.amount && customer && creditExposure(customer) <= creditApproval.snapshot.debt && customer.limit >= creditApproval.snapshot.limit && customer.overdue <= creditApproval.snapshot.overdue);
+  if (order.credit && customer && (customer.overdue > 0 || creditExposure(customer) + order.total > customer.limit) && !creditAllowed) return "Công nợ vượt hạn mức hoặc quá hạn, cần duyệt ngoại lệ.";
   return "";
 }

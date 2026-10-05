@@ -3,7 +3,8 @@ import { IsArray, IsBoolean, IsEmail, IsOptional, IsString, Length, MaxLength, V
 import { Type } from "class-transformer";
 import { AuthService, phoneKey, type AuthRequest } from "../auth/auth.service";
 import { DatabaseService } from "../database/database.service";
-import { CustomerEntity, OrderEntity, ProductEntity, ReceiptEntity, UserEntity } from "../database/entities";
+import { CustomerEntity, ProductEntity, UserEntity } from "../database/entities";
+import { LedgerEntity } from "../database/operations.entities";
 
 class ProfileDto {
   @IsString() @Length(2, 100) name!: string;
@@ -29,9 +30,8 @@ export class AccountController {
   constructor(private readonly auth: AuthService, private readonly db: DatabaseService) {}
   @Get() async account(@Req() request: AuthRequest) {
     const user = (await this.auth.authenticate(request))!;
-    const orders = user.customerId ? await this.db.source.getRepository(OrderEntity).find({ where: { customerId: user.customerId } }) : [];
-    const receipts = user.customerId ? (await this.db.source.getRepository(ReceiptEntity).find()).filter((row) => orders.some((order) => order.id === row.data.orderId)) : [];
-    return { user: await this.auth.userView(user), addresses: user.profile.addresses || [], settings: user.profile.settings || [true, true, false], favorites: user.profile.favorites || [], payments: receipts.filter((row) => row.data.status === "Đã đối chiếu").map((row) => ({ date: row.data.date, note: `Phiếu thu ${row.id} · ${row.data.orderId}`, debit: 0, credit: row.data.amount })) };
+    const entries = user.customerId ? await this.db.source.getRepository(LedgerEntity).find({ where: { resourceId: user.customerId, kind: "credit" }, order: { at: "DESC" }, take: 100 }) : [];
+    return { user: await this.auth.userView(user), addresses: user.profile.addresses || [], settings: user.profile.settings || [true, true, false], favorites: user.profile.favorites || [], payments: entries.map(row => ({ date: row.at.toISOString(), note: row.reason, debit: Math.max(0, row.delta), credit: Math.max(0, -row.delta) })) };
   }
   @Patch("profile") async profile(@Body() input: ProfileDto, @Req() request: AuthRequest) {
     const user = (await this.auth.authenticate(request))!;

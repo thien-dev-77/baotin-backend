@@ -7,6 +7,7 @@ import { branches } from "../types/domain.types";
 import { hashPassword } from "../auth/password";
 import { phoneKey } from "../auth/auth.service";
 import { runtimeAssetPath } from "../runtime-assets";
+import { PricePolicyEntity } from "./operations.entities";
 
 @Injectable()
 export class SeedService implements OnApplicationBootstrap {
@@ -21,6 +22,7 @@ export class SeedService implements OnApplicationBootstrap {
       for (const data of fixture.products) await manager.createQueryBuilder().insert().into(ProductEntity).values({ id: data.id, slug: data.slug, data, published: true }).orIgnore().execute();
       for (const data of fixture.categories) await manager.createQueryBuilder().insert().into(CategoryEntity).values({ slug: data.slug, data }).orIgnore().execute();
       for (const data of fixture.customers) await manager.createQueryBuilder().insert().into(CustomerEntity).values({ id: data.id, branch: data.branch, data }).orIgnore().execute();
+      for (const [index, branch] of branches.entries()) await manager.createQueryBuilder().insert().into(PricePolicyEntity).values({ id: `00000000-0000-4000-8000-${String(index + 1).padStart(12, "0")}`, branch, data: { name: "Bảng giá B2B mẫu", branch, scope: "default", target: "", discount: 10, prices: {}, startsOn: "1970-01-01", endsOn: null, active: true } }).orIgnore().execute();
       for (const original of fixture.orders) {
         const customer = fixture.customers.find((item) => item.id === original.customerId);
         const data = { ...original, details: { recipient: customer?.contact || original.customerName, phone: customer ? phoneKey(customer.phone) : "0901000000", address: "", delivery: "Nhận tại cửa hàng" as const, payment: original.credit ? "Công nợ B2B" as const : "Chuyển khoản" as const, note: "Đơn seed minh họa; chưa có dữ liệu giao hàng KiotViet." } };

@@ -3,6 +3,8 @@
 NestJS 11, TypeScript, TypeORM PostgreSQL va JWT HttpOnly cookie.
 Repo backend tach rieng cho [Bao Tin frontend](https://github.com/thien-dev-77/baotin-frontend).
 Frontend khong duoc dong goi trong repo nay.
+Ban cap nhat uu tien 1-6 va checklist staging:
+[Operations Rollout](docs/operations-rollout.md).
 
 ```txt
 src/      NestJS modules, types va business rules cua BE
@@ -134,6 +136,7 @@ Chi mot database tren port 5441.
 npm run build
 npm run typecheck
 npm test
+npm run test:operations
 ```
 
 `npm run test:api` ghi/xoa du lieu kiem thu: chi chay voi PostgreSQL local va
@@ -142,5 +145,7 @@ Full browser QA chay tu repo frontend va can ca hai services;
 QA_BACKEND_DIR phai tro toi GOC repo BE nay, khong them /backend.
 
 Doc [Backend Integration](docs/backend-integration.md) cho API, auth, quyen,
-server quote, orders/admin/account, uploads va backlog. Hien chua co KiotViet,
-stock/credit ledger that, bank/payment gateway hay production deployment.
+server quote, orders/admin/account, uploads va backlog. Da co pricing/stock/credit
+ledger, account management/recovery va website edit. KiotViet connector/outbox
+can credentials va acceptance; SMTP can cau hinh de gui email that.
+Chua co auto Kiot stock/debt/status sync, bank/refund hay production acceptance.

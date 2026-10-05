@@ -28,6 +28,11 @@ export class SalesDto {
   @IsArray() @ArrayMinSize(1) @ArrayMaxSize(100) @ValidateNested({ each: true }) @Type(() => ItemDto) items!: ItemDto[];
   @IsDefined() @ValidateNested() @Type(() => DetailsDto) details!: DetailsDto;
   @IsOptional() @IsString() @MaxLength(500) reason?: string;
+  @IsOptional() @IsInt() @Min(0) expectedTotal?: number;
+}
+export class SalesQuoteDto extends SalesDto {
+  @IsIn(branches) branch!: typeof branches[number];
+  @IsOptional() @IsString() @Length(1, 100) id?: string;
 }
 export class ApprovalDto {
   @IsIn(approvalTypes) type!: typeof approvalTypes[number];

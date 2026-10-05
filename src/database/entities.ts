@@ -2,6 +2,7 @@ import { Column, CreateDateColumn, Entity, PrimaryColumn, PrimaryGeneratedColumn
 import type { AdminApproval, AdminCustomer, AdminOrder, Branch, Category, Order, Product, StaffRole } from "../types/domain.types";
 import type { WarehouseRecord } from "../admin/rules/warehouse.rules";
 import type { Receipt } from "../admin/rules/accounting.rules";
+import { CreditEntity, IntegrationLinkEntity, IntegrationOutboxEntity, IntegrationRunEntity, InventoryEntity, LedgerEntity, PasswordResetEntity, PricePolicyEntity } from "./operations.entities";
 
 @Entity("products")
 export class ProductEntity {
@@ -21,6 +22,8 @@ export class UserEntity {
   @Column({ unique: true }) email!: string;
   @Column({ type: "varchar", unique: true, nullable: true }) phone!: string | null;
   @Column() name!: string;
+  @Column({ default: false }) disabled!: boolean;
+  @VersionColumn({ default: 1 }) revision!: number;
   @Column({ select: false }) passwordHash!: string;
   @Column() role!: StaffRole | "b2b";
   @Column({ type: "varchar", nullable: true }) customerId!: string | null;
@@ -73,4 +76,4 @@ export class NewsletterEntity {
   @PrimaryColumn() email!: string;
   @CreateDateColumn() createdAt!: Date;
 }
-export const entities = [ProductEntity, CategoryEntity, CustomerEntity, UserEntity, SessionEntity, OrderEntity, ApprovalEntity, ReceiptEntity, AuditEntity, LeadEntity, NewsletterEntity];
+export const entities = [ProductEntity, CategoryEntity, CustomerEntity, UserEntity, SessionEntity, OrderEntity, ApprovalEntity, ReceiptEntity, AuditEntity, LeadEntity, NewsletterEntity, PricePolicyEntity, InventoryEntity, CreditEntity, LedgerEntity, PasswordResetEntity, IntegrationLinkEntity, IntegrationRunEntity, IntegrationOutboxEntity];
