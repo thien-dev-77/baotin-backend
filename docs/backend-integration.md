@@ -5,7 +5,7 @@ synchronize, Supabase PostgreSQL, JWT; seed mock cu va luu anh tren backend.
 Giu giao dien frontend. Tai lieu nay thay hien trang preview trong api-handoff.md.
 Cap nhat cau truc 05/10/2026: src/, media/, scripts/, seed/, certs/,
 test/ va package.json nam tai goc repo BE, khong con folder backend/.
-Next.js cung nam ngay tai goc repo baotin-b2b-fe rieng (app/, components/,
+Next.js cung nam ngay tai goc repo baotin-frontend rieng (app/, components/,
 lib/, scripts/, tests/, package.json), khong con frontend/ trung gian.
 Types/rules BE nam trong src/, types/rules FE trong lib/; khong import source
 giua hai repo. TypeScript BE build ra dist/main.js.
@@ -58,7 +58,7 @@ Commands validate references va transaction tren server.
 
 63 SKU, 8 categories, 7 B2B customers, 18 orders, 3 approvals export tu
 lib/catalog.ts va lib/admin-preview.ts o goc repo FE bang
-`FRONTEND_DIR=../baotin-b2b-fe npm run fixtures` tai goc BE.
+`FRONTEND_DIR=../baotin-frontend npm run fixtures` tai goc BE.
 INSERT ON CONFLICT DO NOTHING, khong overwrite khi restart,
 khong lay localStorage lam seed; seed bi cam o production.
 Seed orders bo sung **pickup details minh hoa** tu contact fixture va note

@@ -1,7 +1,7 @@
 # Bao Tin Backend
 
 NestJS 11, TypeScript, TypeORM PostgreSQL va JWT HttpOnly cookie.
-Repo backend tach rieng cho [Bao Tin frontend](https://github.com/thien-dev-77/baotin-b2b-fe).
+Repo backend tach rieng cho [Bao Tin frontend](https://github.com/thien-dev-77/baotin-frontend).
 Frontend khong duoc dong goi trong repo nay.
 
 ```txt
@@ -23,7 +23,7 @@ Build output: dist/main.js. Yeu cau Node.js >=20.
 ## Chay API
 
 ```sh
-# Chay ngay tai goc repo baotin-b2b-be
+# Chay ngay tai goc repo baotin-backend
 npm ci
 cp .env.example .env
 # Dien DATABASE_URL, JWT_SECRET va SEED_PASSWORD trong .env rieng
@@ -64,7 +64,7 @@ Seed da kem san, build/start khong can frontend. Tool export mock doc source
 tu repo FE rieng, khong dong goi FE vao repo BE:
 
 ```sh
-FRONTEND_DIR=../baotin-b2b-fe npm run fixtures
+FRONTEND_DIR=../baotin-frontend npm run fixtures
 ```
 
 FRONTEND_DIR tro toi folder Next.js co tsconfig.json va lib/; mac dinh nhu
