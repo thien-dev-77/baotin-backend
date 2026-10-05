@@ -2,7 +2,7 @@ import { Controller, Get, NotFoundException, Param, Req } from "@nestjs/common";
 import { DatabaseService } from "../database/database.service";
 import { CategoryEntity, ProductEntity } from "../database/entities";
 import { AuthService, type AuthRequest } from "../auth/auth.service";
-import { priceFor } from "../../../shared/pricing";
+import { priceFor } from "../../shared/pricing";
 
 @Controller("catalog")
 export class CatalogController {

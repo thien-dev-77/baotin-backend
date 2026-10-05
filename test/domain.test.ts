@@ -1,11 +1,11 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { hashPassword, verifyPassword } from "../src/auth/password";
-import { priceFor } from "../../shared/pricing";
-import { validateReceipt, reconciliationBlocker } from "../../shared/admin-accounting";
-import { warehouseBlocker } from "../../shared/admin-warehouse";
+import { priceFor } from "../shared/pricing";
+import { validateReceipt, reconciliationBlocker } from "../shared/admin-accounting";
+import { warehouseBlocker } from "../shared/admin-warehouse";
 import { readFile } from "node:fs/promises";
-import type { AdminOrder, Product } from "../../shared/types";
+import type { AdminOrder, Product } from "../shared/types";
 
 test("Passwords use salted scrypt and reject wrong passwords", async () => {
   const first = await hashPassword("a-long-test-password");
