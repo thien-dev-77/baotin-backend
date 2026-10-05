@@ -1,4 +1,4 @@
-import type { AdminOrder, Branch } from "./types";
+import type { AdminOrder, Branch } from "../../types/domain.types";
 
 export const receiptMethods = ["Chuyển khoản", "Tiền mặt"] as const;
 export type ReceiptMethod = typeof receiptMethods[number];

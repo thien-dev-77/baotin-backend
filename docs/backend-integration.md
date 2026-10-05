@@ -3,10 +3,12 @@
 Cap nhat 04/10/2026. Stack theo yeu cau: NestJS, TypeScript, TypeORM
 synchronize, Supabase PostgreSQL, JWT; seed mock cu va luu anh tren backend.
 Giu giao dien frontend. Tai lieu nay thay hien trang preview trong api-handoff.md.
-Cap nhat cau truc 05/10/2026: src/, shared/, media/, scripts/, seed/, certs/,
+Cap nhat cau truc 05/10/2026: src/, media/, scripts/, seed/, certs/,
 test/ va package.json nam tai goc repo BE, khong con folder backend/.
 Next.js cung nam ngay tai goc repo baotin-b2b-fe rieng (app/, components/,
-lib/, scripts/, shared/, package.json), khong con frontend/ trung gian.
+lib/, scripts/, tests/, package.json), khong con frontend/ trung gian.
+Types/rules BE nam trong src/, types/rules FE trong lib/; khong import source
+giua hai repo. TypeScript BE build ra dist/main.js.
 
 ## Ket Noi Va Chay
 
@@ -36,7 +38,10 @@ mock khi API loi; doi NEXT_PUBLIC_* can restart/rebuild frontend.
 
 - src/database: DataSource, entities va SeedService.
 - src/auth/catalog/orders/admin/account/media: modules nghiep vu.
-- shared/: types, pricing va rules Sales/approval/warehouse/accounting.
+- src/types/: models va API read-model types cua backend.
+- src/admin/rules/: Sales, approval, warehouse, accounting va order guards.
+- src/catalog/pricing.ts: seed pricing tren server.
+- FE lib/types.ts, lib/api-types.ts, lib/admin-*.ts: models va UI validation rieng.
 - FE lib/api-client.ts: fetch same-origin, cookie, errors.
 - FE lib/server-api.ts: product SSR, hidden SKU 404.
 - FE components/admin/api-admin-provider.tsx: state va commands API.
@@ -123,7 +128,7 @@ cung request tra cung don, khac body/owner tra 409. Checkout/admin/account
 chung orders service. Website order chua ho tro sua o Sales editor (can requote
 policy). Sales form tao ho chua tinh shipping/coupon/thue.
 
-14 admin commands xem src/admin/admin.dto.ts, rules xem shared/.
+14 admin commands xem src/admin/admin.dto.ts, rules xem src/admin/rules/.
 Order commands can expectedRevision, stale tra 409. PostgreSQL advisory
 transaction lock serialize pilot commands (mot lock/DB); can row locks khi scale.
 Price/credit approval co snapshot, khong tu confirm/xuat kho. Receipt validate

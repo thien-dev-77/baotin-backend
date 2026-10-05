@@ -1,7 +1,7 @@
 import { Column, CreateDateColumn, Entity, PrimaryColumn, PrimaryGeneratedColumn, UpdateDateColumn, VersionColumn } from "typeorm";
-import type { AdminApproval, AdminCustomer, AdminOrder, Branch, Category, Order, Product, StaffRole } from "../../shared/types";
-import type { WarehouseRecord } from "../../shared/admin-warehouse";
-import type { Receipt } from "../../shared/admin-accounting";
+import type { AdminApproval, AdminCustomer, AdminOrder, Branch, Category, Order, Product, StaffRole } from "../types/domain.types";
+import type { WarehouseRecord } from "../admin/rules/warehouse.rules";
+import type { Receipt } from "../admin/rules/accounting.rules";
 
 @Entity("products")
 export class ProductEntity {

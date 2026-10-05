@@ -1,5 +1,5 @@
-import { priceFor } from "./pricing";
-import type { Product, AdminCustomer, AdminOrder, Branch } from "./types";
+import { priceFor } from "../../catalog/pricing";
+import type { Product, AdminCustomer, AdminOrder, Branch } from "../../types/domain.types";
 
 export const salesSources = ["Zalo", "Điện thoại", "Tại cửa hàng", "Inside Sales"] as const;
 export const salesDeliveries = ["Giao nội thành", "Nhận tại cửa hàng", "Sale giao", "Chành xe"] as const;

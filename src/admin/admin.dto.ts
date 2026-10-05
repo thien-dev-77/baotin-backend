@@ -1,10 +1,10 @@
 import { Type } from "class-transformer";
 import { ArrayMaxSize, ArrayMinSize, IsArray, IsBoolean, IsDefined, IsIn, IsInt, IsObject, IsOptional, IsString, Length, Max, MaxLength, Min, ValidateNested } from "class-validator";
-import { branches } from "../../shared/types";
+import { branches } from "../types/domain.types";
 import { ItemDto } from "../orders/orders.dto";
-import { receiptMethods } from "../../shared/admin-accounting";
-import { approvalTypes } from "../../shared/admin-approval";
-import { salesDeliveries, salesPayments, salesSources } from "../../shared/admin-sales";
+import { receiptMethods } from "./rules/accounting.rules";
+import { approvalTypes } from "./rules/approval.rules";
+import { salesDeliveries, salesPayments, salesSources } from "./rules/sales.rules";
 
 export const actions = ["save-order", "advance-order", "cancel-order", "create-approval", "decide-approval", "customer-status", "publish-product", "pick-item", "report-shortage", "resolve-shortage", "create-receipt", "reconcile-receipt", "void-receipt", "due-date"] as const;
 export class AdminCommandDto {

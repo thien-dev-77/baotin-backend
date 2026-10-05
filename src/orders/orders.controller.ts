@@ -4,7 +4,7 @@ import type { Response } from "express";
 import { AuthService, cookieOptions, guestCookie, type AuthRequest } from "../auth/auth.service";
 import { DatabaseService } from "../database/database.service";
 import { ApprovalEntity, OrderEntity } from "../database/entities";
-import { applyApprovedPrice } from "../../shared/admin-approval";
+import { applyApprovedPrice } from "../admin/rules/approval.rules";
 import { CheckoutDto, QuoteDto } from "./orders.dto";
 import { customerOrder, OrdersService } from "./orders.service";
 

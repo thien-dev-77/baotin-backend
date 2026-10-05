@@ -6,7 +6,7 @@ import { DatabaseService } from "../database/database.service";
 import { CustomerEntity, SessionEntity, UserEntity } from "../database/entities";
 import { hashPassword, verifyPassword } from "./password";
 import type { LoginDto, RegisterDto } from "./auth.dto";
-import type { SessionUser } from "../../shared/types";
+import type { SessionUser } from "../types/domain.types";
 
 export type AuthRequest = Request & { user?: UserEntity; sessionId?: string; guestId?: string };
 export const authCookie = "baotin_session";

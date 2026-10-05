@@ -1,5 +1,5 @@
-import { approvalMatchesOrder, latestOrderApprovals } from "./admin-approval";
-import type { AdminOrder, AdminCustomer, AdminApproval, Product } from "./types";
+import { approvalMatchesOrder, latestOrderApprovals } from "./approval.rules";
+import type { AdminOrder, AdminCustomer, AdminApproval, Product } from "../../types/domain.types";
 
 export function orderBlocker(order: AdminOrder, customers: AdminCustomer[], approvals: AdminApproval[], products: Product[]) {
   const customer = customers.find((item) => item.id === order.customerId);

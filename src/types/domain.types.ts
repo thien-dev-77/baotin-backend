@@ -1,5 +1,5 @@
-import type { ApprovalSnapshot, ApprovalType } from "./admin-approval";
-import type { SalesDetails } from "./admin-sales";
+import type { ApprovalSnapshot, ApprovalType } from "../admin/rules/approval.rules";
+import type { SalesDetails } from "../admin/rules/sales.rules";
 
 export type Category = { slug: string; name: string; image: string; description: string; subcategories: string[] };
 export type Product = {

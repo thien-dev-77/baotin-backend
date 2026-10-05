@@ -1,11 +1,11 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { hashPassword, verifyPassword } from "../src/auth/password";
-import { priceFor } from "../shared/pricing";
-import { validateReceipt, reconciliationBlocker } from "../shared/admin-accounting";
-import { warehouseBlocker } from "../shared/admin-warehouse";
+import { priceFor } from "../src/catalog/pricing";
+import { validateReceipt, reconciliationBlocker } from "../src/admin/rules/accounting.rules";
+import { warehouseBlocker } from "../src/admin/rules/warehouse.rules";
 import { readFile } from "node:fs/promises";
-import type { AdminOrder, Product } from "../shared/types";
+import type { AdminOrder, Product } from "../src/types/domain.types";
 
 test("Passwords use salted scrypt and reject wrong passwords", async () => {
   const first = await hashPassword("a-long-test-password");
@@ -14,7 +14,7 @@ test("Passwords use salted scrypt and reject wrong passwords", async () => {
   assert.equal(await verifyPassword("a-long-test-password", first), true);
   assert.equal(await verifyPassword("wrong-password", first), false);
 });
-test("Shared domain guards retain mock rules", async () => {
+test("Backend domain guards retain mock rules", async () => {
   const fixture = JSON.parse(await readFile("seed/mock.json", "utf8"));
   const product: Product = fixture.products[0];
   assert.equal(priceFor(product, null), product.price);

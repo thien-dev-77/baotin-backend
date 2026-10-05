@@ -3,8 +3,8 @@ import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { DatabaseService } from "./database.service";
 import { ApprovalEntity, CategoryEntity, CustomerEntity, OrderEntity, ProductEntity, UserEntity } from "./entities";
-import type { AdminApproval, AdminCustomer, AdminOrder, Category, Product, StaffRole } from "../../shared/types";
-import { branches } from "../../shared/types";
+import type { AdminApproval, AdminCustomer, AdminOrder, Category, Product, StaffRole } from "../types/domain.types";
+import { branches } from "../types/domain.types";
 import { hashPassword } from "../auth/password";
 import { phoneKey } from "../auth/auth.service";
 

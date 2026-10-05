@@ -1,4 +1,4 @@
-import type { AdminOrder } from "./types";
+import type { AdminOrder } from "../../types/domain.types";
 
 export const warehouseStages = ["Chờ soạn hàng", "Đang soạn", "Sẵn sàng giao"] as const;
 export type WarehouseEvent = { at: string; label: string; note?: string };

@@ -1,6 +1,6 @@
-import type { AdminApproval, AdminCustomer, AdminOrder, Category, Order, Product, SessionUser } from "./types";
-import type { WarehouseRecord } from "./admin-warehouse";
-import type { Receipt } from "./admin-accounting";
+import type { AdminApproval, AdminCustomer, AdminOrder, Category, Order, Product, SessionUser } from "./domain.types";
+import type { WarehouseRecord } from "../admin/rules/warehouse.rules";
+import type { Receipt } from "../admin/rules/accounting.rules";
 
 export type ApiAdminState = {
   products: (Product & { published: boolean })[]; customers: AdminCustomer[];

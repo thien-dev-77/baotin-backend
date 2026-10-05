@@ -1,4 +1,4 @@
-import type { AdminApproval, AdminCustomer, AdminOrder } from "./types";
+import type { AdminApproval, AdminCustomer, AdminOrder } from "../../types/domain.types";
 
 export const approvalTypes = ["Giá đặc biệt", "Công nợ"] as const;
 export type ApprovalType = typeof approvalTypes[number];

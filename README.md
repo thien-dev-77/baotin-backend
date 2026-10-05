@@ -5,8 +5,7 @@ Repo backend tach rieng cho [Bao Tin frontend](https://github.com/thien-dev-77/b
 Frontend khong duoc dong goi trong repo nay.
 
 ```txt
-src/      NestJS API modules
-shared/   Types, pricing va business rules duoc API su dung
+src/      NestJS modules, types va business rules cua BE
 media/    Anh mau va uploads runtime
 seed/     Mock fixtures
 scripts/  Export fixtures va PostgreSQL local
@@ -17,7 +16,9 @@ package.json, tsconfig.json, .env.example, compose.yml
 ```
 
 Tat ca nam ngay tai goc repo, khong con folder backend/ trung gian.
-Giu src/ va shared/ trong cung repo. Yeu cau Node.js >=20.
+Runtime source chi nam trong src/: types o src/types/, rules o src/admin/rules/,
+pricing o src/catalog/pricing.ts. Khong phu thuoc source FE khi build/start.
+Build output: dist/main.js. Yeu cau Node.js >=20.
 
 ## Chay API
 

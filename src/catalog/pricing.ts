@@ -1,4 +1,4 @@
-import type { Customer, Product } from "./types";
+import type { Customer, Product } from "../types/domain.types";
 
 // Seed pricing only. Live policies must replace this on the server.
 export function priceFor(product: Product, customer: Customer | null) {

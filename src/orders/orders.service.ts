@@ -4,9 +4,9 @@ import type { EntityManager } from "typeorm";
 import { DatabaseService } from "../database/database.service";
 import { CustomerEntity, OrderEntity, ProductEntity, UserEntity } from "../database/entities";
 import type { CheckoutDto, QuoteDto } from "./orders.dto";
-import type { AdminOrder, Order } from "../../shared/types";
-import type { Quote } from "../../shared/api";
-import { priceFor } from "../../shared/pricing";
+import type { AdminOrder, Order } from "../types/domain.types";
+import type { Quote } from "../types/api.types";
+import { priceFor } from "../catalog/pricing";
 
 export function businessDate() { return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Ho_Chi_Minh", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date()); }
 export function customerOrder(row: OrderEntity): Order {
