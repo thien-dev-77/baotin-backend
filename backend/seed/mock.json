@@ -1,0 +1,2115 @@
+{
+  "products": [
+    {
+      "id": "311.72.501",
+      "slug": "ban-le-giam-chan-hafele",
+      "name": "Bản lề giảm chấn Hafele",
+      "code": "311.72.501",
+      "category": "ban-le",
+      "subcategory": "Bản lề giảm chấn",
+      "image": "/images/catalog/hinge-detail.png",
+      "gallery": [
+        "/images/catalog/hinge-detail.png",
+        "/images/catalog/hinge-hd.jpg"
+      ],
+      "brand": "Hafele",
+      "specification": "Giảm chấn · Mở 110°",
+      "material": "Thép mạ nickel",
+      "color": "Bạc",
+      "size": "Tiêu chuẩn",
+      "origin": "Đức",
+      "price": 28000,
+      "oldPrice": 35000,
+      "unit": "cái",
+      "stock": 100,
+      "featured": true
+    },
+    {
+      "id": "LED-12V-8W",
+      "slug": "led-day-12v-8w-m",
+      "name": "LED dây 12V 8W/m",
+      "code": "LED-12V-8W",
+      "category": "led-tu-ke",
+      "subcategory": "LED dây",
+      "image": "/images/catalog/led-strip-hd.jpg",
+      "gallery": [
+        "/images/catalog/led-strip-hd.jpg",
+        "/images/hero/kitchen-lighting-hd.jpg"
+      ],
+      "brand": "Bảo Tín",
+      "specification": "12V · Ánh sáng vàng",
+      "material": "Nhôm",
+      "color": "Bạc",
+      "size": "Tiêu chuẩn",
+      "origin": "Việt Nam",
+      "price": 45000,
+      "oldPrice": 56000,
+      "unit": "m",
+      "stock": 137,
+      "featured": true
+    },
+    {
+      "id": "433.02.450",
+      "slug": "ray-am-giam-chan-450mm",
+      "name": "Ray âm giảm chấn 450mm",
+      "code": "433.02.450",
+      "category": "ray-truot",
+      "subcategory": "Ray âm",
+      "image": "/images/catalog/drawer-undermount-hd.jpg",
+      "gallery": [
+        "/images/catalog/drawer-undermount-hd.jpg"
+      ],
+      "brand": "Hettich",
+      "specification": "450mm · Tải trọng 35kg",
+      "material": "Thép",
+      "color": "Bạc",
+      "size": "450mm",
+      "origin": "Việt Nam",
+      "price": 120000,
+      "oldPrice": 150000,
+      "unit": "bộ",
+      "stock": 174,
+      "featured": true
+    },
+    {
+      "id": "BT-RK-01",
+      "slug": "ro-keo-da-nang-inox-304",
+      "name": "Rổ kéo đa năng inox 304",
+      "code": "BT-RK-01",
+      "category": "phu-kien-bep",
+      "subcategory": "Phụ kiện tủ bếp",
+      "image": "/images/catalog/pull-out-basket-hd.jpg",
+      "gallery": [
+        "/images/catalog/pull-out-basket-hd.jpg",
+        "/images/catalog/kitchen-storage-hd.jpg"
+      ],
+      "brand": "Hafele",
+      "specification": "Inox 304 · Tủ 600mm",
+      "material": "Inox 304",
+      "color": "Bạc",
+      "size": "600mm",
+      "origin": "Đức",
+      "price": 850000,
+      "oldPrice": 1063000,
+      "unit": "bộ",
+      "stock": 211,
+      "featured": true
+    },
+    {
+      "id": "TN-201",
+      "slug": "tay-nam-tu-hien-dai",
+      "name": "Tay nắm tủ hiện đại",
+      "code": "TN-201",
+      "category": "tay-nam",
+      "subcategory": "Tay nắm thanh",
+      "image": "/images/catalog/handle-brass-hd.jpg",
+      "gallery": [
+        "/images/catalog/handle-brass-hd.jpg",
+        "/images/catalog/handle-installed-hd.jpg"
+      ],
+      "brand": "Bảo Tín",
+      "specification": "Khoảng cách lỗ 128mm",
+      "material": "Hợp kim",
+      "color": "Vàng",
+      "size": "Tiêu chuẩn",
+      "origin": "Việt Nam",
+      "price": 32000,
+      "oldPrice": 40000,
+      "unit": "cái",
+      "stock": 248,
+      "featured": true
+    },
+    {
+      "id": "KL-101",
+      "slug": "khoa-cua-phan-the",
+      "name": "Khóa cửa phân thể",
+      "code": "KL-101",
+      "category": "khoa",
+      "subcategory": "Khóa cửa",
+      "image": "/images/locks/499-21-226.jpg",
+      "gallery": [
+        "/images/locks/499-21-226.jpg"
+      ],
+      "brand": "Hettich",
+      "specification": "Màu đen · Cửa gỗ",
+      "material": "Hợp kim",
+      "color": "Đen",
+      "size": "Tiêu chuẩn",
+      "origin": "Việt Nam",
+      "price": 280000,
+      "oldPrice": 350000,
+      "unit": "bộ",
+      "stock": 285,
+      "featured": true
+    },
+    {
+      "id": "TA-OVAL-304",
+      "slug": "thanh-treo-tu-ao-oval-inox",
+      "name": "Thanh treo tủ áo oval inox",
+      "code": "TA-OVAL-304",
+      "category": "phu-kien-tu-ao",
+      "subcategory": "Thanh treo",
+      "image": "/images/catalog/wardrobe-hd.jpg",
+      "gallery": [
+        "/images/catalog/wardrobe-hd.jpg"
+      ],
+      "brand": "Hafele",
+      "specification": "Oval · Dài 1m",
+      "material": "Inox 304",
+      "color": "Bạc",
+      "size": "Tiêu chuẩn",
+      "origin": "Đức",
+      "price": 68000,
+      "unit": "cây",
+      "stock": 322,
+      "featured": false
+    },
+    {
+      "id": "PT-100N",
+      "slug": "piston-nang-canh-tu-bep",
+      "name": "Piston nâng cánh tủ bếp",
+      "code": "PT-100N",
+      "category": "phu-kien-bep",
+      "subcategory": "Phụ kiện tủ bếp",
+      "image": "/images/catalog/kitchen-storage-hd.jpg",
+      "gallery": [
+        "/images/catalog/kitchen-storage-hd.jpg"
+      ],
+      "brand": "Bảo Tín",
+      "specification": "100N · Lắp hai bên",
+      "material": "Thép",
+      "color": "Bạc",
+      "size": "Tiêu chuẩn",
+      "origin": "Việt Nam",
+      "price": 95000,
+      "unit": "cái",
+      "stock": 359,
+      "featured": false
+    },
+    {
+      "id": "TR-AT-02",
+      "slug": "thung-rac-am-tu-doi",
+      "name": "Thùng rác âm tủ đôi",
+      "code": "TR-AT-02",
+      "category": "phu-kien-bep",
+      "subcategory": "Thùng rác âm tủ",
+      "image": "/images/catalog/kitchen-storage-hd.jpg",
+      "gallery": [
+        "/images/catalog/kitchen-storage-hd.jpg"
+      ],
+      "brand": "Hettich",
+      "specification": "20L · Hai ngăn",
+      "material": "Nhựa ABS",
+      "color": "Bạc",
+      "size": "Tiêu chuẩn",
+      "origin": "Việt Nam",
+      "price": 620000,
+      "oldPrice": 775000,
+      "unit": "bộ",
+      "stock": 396,
+      "featured": false
+    },
+    {
+      "id": "KK-INOX-01",
+      "slug": "kep-kinh-inox-hoan-thien",
+      "name": "Kẹp kính inox hoàn thiện",
+      "code": "KK-INOX-01",
+      "category": "phu-kien-lap-dat",
+      "subcategory": "Kẹp kính",
+      "image": "/images/catalog/hardware-hd.jpg",
+      "gallery": [
+        "/images/catalog/hardware-hd.jpg"
+      ],
+      "brand": "Hafele",
+      "specification": "Kính 8–12mm",
+      "material": "Inox 304",
+      "color": "Bạc",
+      "size": "Tiêu chuẩn",
+      "origin": "Đức",
+      "price": 42000,
+      "unit": "cái",
+      "stock": 0,
+      "featured": false
+    },
+    {
+      "id": "BT-101",
+      "slug": "gia-bat-nang-ha-inox-304",
+      "name": "Giá bát nâng hạ inox 304",
+      "code": "BT-101",
+      "category": "phu-kien-bep",
+      "subcategory": "Giá bát nâng hạ",
+      "image": "/images/catalog/pull-out-basket-hd.jpg",
+      "gallery": [
+        "/images/catalog/pull-out-basket-hd.jpg",
+        "/images/catalog/kitchen-storage-hd.jpg"
+      ],
+      "brand": "Hafele",
+      "specification": "Inox 304 · Tủ 600mm",
+      "material": "Inox 304",
+      "color": "Bạc",
+      "size": "600mm",
+      "origin": "Đức",
+      "price": 2450000,
+      "oldPrice": 2940000,
+      "unit": "bộ",
+      "stock": 35,
+      "featured": false
+    },
+    {
+      "id": "BT-102",
+      "slug": "gia-xoong-noi-2-tang-600mm",
+      "name": "Giá xoong nồi 2 tầng 600mm",
+      "code": "BT-102",
+      "category": "phu-kien-bep",
+      "subcategory": "Giá xoong nồi",
+      "image": "/images/catalog/pull-out-basket-hd.jpg",
+      "gallery": [
+        "/images/catalog/pull-out-basket-hd.jpg",
+        "/images/catalog/kitchen-storage-hd.jpg"
+      ],
+      "brand": "Bảo Tín",
+      "specification": "Inox 304 · Tủ 600mm",
+      "material": "Inox 304",
+      "color": "Bạc",
+      "size": "600mm",
+      "origin": "Đức",
+      "price": 1280000,
+      "unit": "bộ",
+      "stock": 40,
+      "featured": false
+    },
+    {
+      "id": "BT-103",
+      "slug": "ke-gia-vi-inox-304-300mm",
+      "name": "Kệ gia vị inox 304 300mm",
+      "code": "BT-103",
+      "category": "phu-kien-bep",
+      "subcategory": "Kệ gia vị",
+      "image": "/images/catalog/pull-out-basket-hd.jpg",
+      "gallery": [
+        "/images/catalog/pull-out-basket-hd.jpg",
+        "/images/catalog/kitchen-storage-hd.jpg"
+      ],
+      "brand": "Hettich",
+      "specification": "Inox 304 · Tủ 300mm",
+      "material": "Inox 304",
+      "color": "Bạc",
+      "size": "300mm",
+      "origin": "Đức",
+      "price": 750000,
+      "unit": "bộ",
+      "stock": 45,
+      "featured": false
+    },
+    {
+      "id": "BT-104",
+      "slug": "ke-goc-lien-hoan-4-ro",
+      "name": "Kệ góc liên hoàn 4 rổ",
+      "code": "BT-104",
+      "category": "phu-kien-bep",
+      "subcategory": "Kệ góc",
+      "image": "/images/catalog/pull-out-basket-hd.jpg",
+      "gallery": [
+        "/images/catalog/pull-out-basket-hd.jpg",
+        "/images/catalog/kitchen-storage-hd.jpg"
+      ],
+      "brand": "Hafele",
+      "specification": "Inox 304 · Tủ 600mm",
+      "material": "Inox 304",
+      "color": "Bạc",
+      "size": "600mm",
+      "origin": "Đức",
+      "price": 3450000,
+      "oldPrice": 4140000,
+      "unit": "bộ",
+      "stock": 50,
+      "featured": false
+    },
+    {
+      "id": "BT-105",
+      "slug": "gia-bat-co-dinh-800mm",
+      "name": "Giá bát cố định 800mm",
+      "code": "BT-105",
+      "category": "phu-kien-bep",
+      "subcategory": "Phụ kiện tủ bếp",
+      "image": "/images/catalog/pull-out-basket-hd.jpg",
+      "gallery": [
+        "/images/catalog/pull-out-basket-hd.jpg",
+        "/images/catalog/kitchen-storage-hd.jpg"
+      ],
+      "brand": "Bảo Tín",
+      "specification": "Inox 304 · Tủ 800mm",
+      "material": "Inox 304",
+      "color": "Bạc",
+      "size": "800mm",
+      "origin": "Đức",
+      "price": 980000,
+      "unit": "bộ",
+      "stock": 55,
+      "featured": false
+    },
+    {
+      "id": "BT-106",
+      "slug": "thung-rac-am-tu-30l",
+      "name": "Thùng rác âm tủ 30L",
+      "code": "BT-106",
+      "category": "phu-kien-bep",
+      "subcategory": "Thùng rác âm tủ",
+      "image": "/images/catalog/pull-out-basket-hd.jpg",
+      "gallery": [
+        "/images/catalog/pull-out-basket-hd.jpg",
+        "/images/catalog/kitchen-storage-hd.jpg"
+      ],
+      "brand": "Hettich",
+      "specification": "Inox 304 · Tủ 30L",
+      "material": "Inox 304",
+      "color": "Bạc",
+      "size": "30L",
+      "origin": "Đức",
+      "price": 890000,
+      "unit": "bộ",
+      "stock": 60,
+      "featured": false
+    },
+    {
+      "id": "BT-107",
+      "slug": "ke-gia-vi-200mm-giam-chan",
+      "name": "Kệ gia vị 200mm giảm chấn",
+      "code": "BT-107",
+      "category": "phu-kien-bep",
+      "subcategory": "Kệ gia vị",
+      "image": "/images/catalog/pull-out-basket-hd.jpg",
+      "gallery": [
+        "/images/catalog/pull-out-basket-hd.jpg",
+        "/images/catalog/kitchen-storage-hd.jpg"
+      ],
+      "brand": "Hafele",
+      "specification": "Inox 304 · Tủ 200mm",
+      "material": "Inox 304",
+      "color": "Bạc",
+      "size": "200mm",
+      "origin": "Đức",
+      "price": 620000,
+      "oldPrice": 744000,
+      "unit": "bộ",
+      "stock": 65,
+      "featured": false
+    },
+    {
+      "id": "BT-108",
+      "slug": "gia-xoong-noi-800mm",
+      "name": "Giá xoong nồi 800mm",
+      "code": "BT-108",
+      "category": "phu-kien-bep",
+      "subcategory": "Giá xoong nồi",
+      "image": "/images/catalog/pull-out-basket-hd.jpg",
+      "gallery": [
+        "/images/catalog/pull-out-basket-hd.jpg",
+        "/images/catalog/kitchen-storage-hd.jpg"
+      ],
+      "brand": "Bảo Tín",
+      "specification": "Inox 304 · Tủ 800mm",
+      "material": "Inox 304",
+      "color": "Bạc",
+      "size": "800mm",
+      "origin": "Đức",
+      "price": 1580000,
+      "unit": "bộ",
+      "stock": 70,
+      "featured": false
+    },
+    {
+      "id": "BT-109",
+      "slug": "gia-bat-nang-ha-900mm",
+      "name": "Giá bát nâng hạ 900mm",
+      "code": "BT-109",
+      "category": "phu-kien-bep",
+      "subcategory": "Giá bát nâng hạ",
+      "image": "/images/catalog/pull-out-basket-hd.jpg",
+      "gallery": [
+        "/images/catalog/pull-out-basket-hd.jpg",
+        "/images/catalog/kitchen-storage-hd.jpg"
+      ],
+      "brand": "Hettich",
+      "specification": "Inox 304 · Tủ 900mm",
+      "material": "Inox 304",
+      "color": "Bạc",
+      "size": "900mm",
+      "origin": "Đức",
+      "price": 2890000,
+      "unit": "bộ",
+      "stock": 75,
+      "featured": false
+    },
+    {
+      "id": "BT-110",
+      "slug": "ke-goc-xoay-270",
+      "name": "Kệ góc xoay 270°",
+      "code": "BT-110",
+      "category": "phu-kien-bep",
+      "subcategory": "Kệ góc",
+      "image": "/images/catalog/pull-out-basket-hd.jpg",
+      "gallery": [
+        "/images/catalog/pull-out-basket-hd.jpg",
+        "/images/catalog/kitchen-storage-hd.jpg"
+      ],
+      "brand": "Hafele",
+      "specification": "Inox 304 · Tủ 600mm",
+      "material": "Inox 304",
+      "color": "Bạc",
+      "size": "600mm",
+      "origin": "Đức",
+      "price": 1990000,
+      "oldPrice": 2388000,
+      "unit": "bộ",
+      "stock": 80,
+      "featured": false
+    },
+    {
+      "id": "BT-111",
+      "slug": "ro-keo-da-nang-800mm",
+      "name": "Rổ kéo đa năng 800mm",
+      "code": "BT-111",
+      "category": "phu-kien-bep",
+      "subcategory": "Phụ kiện tủ bếp",
+      "image": "/images/catalog/pull-out-basket-hd.jpg",
+      "gallery": [
+        "/images/catalog/pull-out-basket-hd.jpg",
+        "/images/catalog/kitchen-storage-hd.jpg"
+      ],
+      "brand": "Bảo Tín",
+      "specification": "Inox 304 · Tủ 800mm",
+      "material": "Inox 304",
+      "color": "Bạc",
+      "size": "800mm",
+      "origin": "Đức",
+      "price": 1150000,
+      "unit": "bộ",
+      "stock": 85,
+      "featured": false
+    },
+    {
+      "id": "BT-112",
+      "slug": "khay-chia-ngan-keo",
+      "name": "Khay chia ngăn kéo",
+      "code": "BT-112",
+      "category": "phu-kien-bep",
+      "subcategory": "Phụ kiện tủ bếp",
+      "image": "/images/catalog/pull-out-basket-hd.jpg",
+      "gallery": [
+        "/images/catalog/pull-out-basket-hd.jpg",
+        "/images/catalog/kitchen-storage-hd.jpg"
+      ],
+      "brand": "Hettich",
+      "specification": "Inox 304 · Tủ 600mm",
+      "material": "Inox 304",
+      "color": "Bạc",
+      "size": "600mm",
+      "origin": "Đức",
+      "price": 185000,
+      "unit": "bộ",
+      "stock": 90,
+      "featured": false
+    },
+    {
+      "id": "BT-113",
+      "slug": "ray-am-giam-chan-500mm",
+      "name": "Ray âm giảm chấn 500mm",
+      "code": "BT-113",
+      "category": "ray-truot",
+      "subcategory": "Ray âm",
+      "image": "/images/catalog/drawer-undermount-hd.jpg",
+      "gallery": [
+        "/images/catalog/drawer-undermount-hd.jpg"
+      ],
+      "brand": "Hafele",
+      "specification": "500mm · Tải trọng 35kg",
+      "material": "Thép",
+      "color": "Bạc",
+      "size": "500mm",
+      "origin": "Việt Nam",
+      "price": 135000,
+      "oldPrice": 162000,
+      "unit": "bộ",
+      "stock": 95,
+      "featured": false
+    },
+    {
+      "id": "BT-114",
+      "slug": "ray-bi-3-tang-450mm",
+      "name": "Ray bi 3 tầng 450mm",
+      "code": "BT-114",
+      "category": "ray-truot",
+      "subcategory": "Ray bi",
+      "image": "/images/catalog/drawer-undermount-hd.jpg",
+      "gallery": [
+        "/images/catalog/drawer-undermount-hd.jpg"
+      ],
+      "brand": "Bảo Tín",
+      "specification": "450mm · Tải trọng 35kg",
+      "material": "Thép",
+      "color": "Bạc",
+      "size": "450mm",
+      "origin": "Việt Nam",
+      "price": 85000,
+      "unit": "bộ",
+      "stock": 100,
+      "featured": false
+    },
+    {
+      "id": "BT-115",
+      "slug": "ray-am-giam-chan-350mm",
+      "name": "Ray âm giảm chấn 350mm",
+      "code": "BT-115",
+      "category": "ray-truot",
+      "subcategory": "Ray âm",
+      "image": "/images/catalog/drawer-undermount-hd.jpg",
+      "gallery": [
+        "/images/catalog/drawer-undermount-hd.jpg"
+      ],
+      "brand": "Hettich",
+      "specification": "350mm · Tải trọng 35kg",
+      "material": "Thép",
+      "color": "Bạc",
+      "size": "350mm",
+      "origin": "Việt Nam",
+      "price": 110000,
+      "unit": "bộ",
+      "stock": 105,
+      "featured": false
+    },
+    {
+      "id": "BT-116",
+      "slug": "ray-giam-chan-400mm",
+      "name": "Ray giảm chấn 400mm",
+      "code": "BT-116",
+      "category": "ray-truot",
+      "subcategory": "Ray giảm chấn",
+      "image": "/images/catalog/drawer-undermount-hd.jpg",
+      "gallery": [
+        "/images/catalog/drawer-undermount-hd.jpg"
+      ],
+      "brand": "Hafele",
+      "specification": "400mm · Tải trọng 35kg",
+      "material": "Thép",
+      "color": "Bạc",
+      "size": "400mm",
+      "origin": "Việt Nam",
+      "price": 115000,
+      "oldPrice": 138000,
+      "unit": "bộ",
+      "stock": 110,
+      "featured": false
+    },
+    {
+      "id": "BT-117",
+      "slug": "ban-le-giam-chan-hafele-311-72-502",
+      "name": "Bản lề giảm chấn Hafele 311.72.502",
+      "code": "BT-117",
+      "category": "ban-le",
+      "subcategory": "Bản lề giảm chấn",
+      "image": "/images/catalog/hinge-detail.png",
+      "gallery": [
+        "/images/catalog/hinge-detail.png",
+        "/images/catalog/hinge-hd.jpg"
+      ],
+      "brand": "Hafele",
+      "specification": "Giảm chấn · Mở 110°",
+      "material": "Thép mạ nickel",
+      "color": "Bạc",
+      "size": "Tiêu chuẩn",
+      "origin": "Đức",
+      "price": 32000,
+      "unit": "cái",
+      "stock": 115,
+      "featured": false
+    },
+    {
+      "id": "BT-118",
+      "slug": "de-ban-le-hafele",
+      "name": "Đế bản lề Hafele",
+      "code": "BT-118",
+      "category": "ban-le",
+      "subcategory": "Phụ kiện bản lề",
+      "image": "/images/catalog/hinge-plate.png",
+      "gallery": [
+        "/images/catalog/hinge-plate.png"
+      ],
+      "brand": "Hafele",
+      "specification": "Đế lắp bản lề · Thép mạ nickel",
+      "material": "Thép mạ nickel",
+      "color": "Bạc",
+      "size": "Tiêu chuẩn",
+      "origin": "Đức",
+      "price": 12000,
+      "unit": "cái",
+      "stock": 120,
+      "featured": false
+    },
+    {
+      "id": "BT-119",
+      "slug": "nap-che-ban-le",
+      "name": "Nắp che bản lề",
+      "code": "BT-119",
+      "category": "ban-le",
+      "subcategory": "Phụ kiện bản lề",
+      "image": "/images/catalog/hinge-cap.png",
+      "gallery": [
+        "/images/catalog/hinge-cap.png"
+      ],
+      "brand": "Hafele",
+      "specification": "Phụ kiện hoàn thiện bản lề",
+      "material": "Thép mạ nickel",
+      "color": "Bạc",
+      "size": "Tiêu chuẩn",
+      "origin": "Đức",
+      "price": 8000,
+      "oldPrice": 10000,
+      "unit": "cái",
+      "stock": 125,
+      "featured": false
+    },
+    {
+      "id": "BT-120",
+      "slug": "vit-bat-ban-le",
+      "name": "Vít bắt bản lề",
+      "code": "BT-120",
+      "category": "ban-le",
+      "subcategory": "Phụ kiện bản lề",
+      "image": "/images/catalog/hinge-screws.png",
+      "gallery": [
+        "/images/catalog/hinge-screws.png"
+      ],
+      "brand": "Bảo Tín",
+      "specification": "Vít lắp bản lề · Mạ kẽm",
+      "material": "Thép mạ nickel",
+      "color": "Bạc",
+      "size": "Tiêu chuẩn",
+      "origin": "Đức",
+      "price": 2000,
+      "unit": "cái",
+      "stock": 130,
+      "featured": false
+    },
+    {
+      "id": "BT-121",
+      "slug": "thanh-nhom-led-am-1m",
+      "name": "Thanh nhôm LED âm 1m",
+      "code": "BT-121",
+      "category": "led-tu-ke",
+      "subcategory": "Thanh nhôm LED",
+      "image": "/images/catalog/led-strip-hd.jpg",
+      "gallery": [
+        "/images/catalog/led-strip-hd.jpg",
+        "/images/hero/kitchen-lighting-hd.jpg"
+      ],
+      "brand": "Hettich",
+      "specification": "Thanh nhôm âm · Dài 1m",
+      "material": "Nhôm",
+      "color": "Bạc",
+      "size": "1m",
+      "origin": "Việt Nam",
+      "price": 65000,
+      "unit": "thanh",
+      "stock": 135,
+      "featured": false
+    },
+    {
+      "id": "BT-122",
+      "slug": "nguon-led-12v-60w",
+      "name": "Nguồn LED 12V 60W",
+      "code": "BT-122",
+      "category": "led-tu-ke",
+      "subcategory": "Nguồn LED",
+      "image": "/images/catalog/led-strip-hd.jpg",
+      "gallery": [
+        "/images/catalog/led-strip-hd.jpg",
+        "/images/hero/kitchen-lighting-hd.jpg"
+      ],
+      "brand": "Hafele",
+      "specification": "12V · Công suất 60W",
+      "material": "Nhôm",
+      "color": "Bạc",
+      "size": "Tiêu chuẩn",
+      "origin": "Việt Nam",
+      "price": 185000,
+      "oldPrice": 222000,
+      "unit": "cái",
+      "stock": 140,
+      "featured": false
+    },
+    {
+      "id": "BT-123",
+      "slug": "cam-bien-led-mo-cua",
+      "name": "Cảm biến LED mở cửa",
+      "code": "BT-123",
+      "category": "led-tu-ke",
+      "subcategory": "Cảm biến",
+      "image": "/images/catalog/led-strip-hd.jpg",
+      "gallery": [
+        "/images/catalog/led-strip-hd.jpg",
+        "/images/hero/kitchen-lighting-hd.jpg"
+      ],
+      "brand": "Bảo Tín",
+      "specification": "Cảm biến mở cửa · 12V",
+      "material": "Nhôm",
+      "color": "Bạc",
+      "size": "Tiêu chuẩn",
+      "origin": "Việt Nam",
+      "price": 95000,
+      "unit": "cái",
+      "stock": 145,
+      "featured": false
+    },
+    {
+      "id": "BT-124",
+      "slug": "tay-nam-thanh-den-160mm",
+      "name": "Tay nắm thanh đen 160mm",
+      "code": "BT-124",
+      "category": "tay-nam",
+      "subcategory": "Tay nắm thanh",
+      "image": "/images/catalog/handle-brass-hd.jpg",
+      "gallery": [
+        "/images/catalog/handle-brass-hd.jpg",
+        "/images/catalog/handle-installed-hd.jpg"
+      ],
+      "brand": "Hettich",
+      "specification": "Khoảng cách lỗ 128mm",
+      "material": "Hợp kim",
+      "color": "Vàng",
+      "size": "160mm",
+      "origin": "Việt Nam",
+      "price": 45000,
+      "unit": "cái",
+      "stock": 150,
+      "featured": false
+    },
+    {
+      "id": "BT-125",
+      "slug": "num-tu-hop-kim-tron",
+      "name": "Núm tủ hợp kim tròn",
+      "code": "BT-125",
+      "category": "tay-nam",
+      "subcategory": "Núm tủ",
+      "image": "/images/catalog/handle-brass-hd.jpg",
+      "gallery": [
+        "/images/catalog/handle-brass-hd.jpg",
+        "/images/catalog/handle-installed-hd.jpg"
+      ],
+      "brand": "Hafele",
+      "specification": "Khoảng cách lỗ 128mm",
+      "material": "Hợp kim",
+      "color": "Vàng",
+      "size": "Tiêu chuẩn",
+      "origin": "Việt Nam",
+      "price": 25000,
+      "oldPrice": 30000,
+      "unit": "cái",
+      "stock": 155,
+      "featured": false
+    },
+    {
+      "id": "BT-126",
+      "slug": "khoa-tu-hafele",
+      "name": "Khóa tủ Hafele",
+      "code": "BT-126",
+      "category": "khoa",
+      "subcategory": "Khóa tủ",
+      "image": "/images/locks/499-21-226.jpg",
+      "gallery": [
+        "/images/locks/499-21-226.jpg"
+      ],
+      "brand": "Hafele",
+      "specification": "Màu đen · Cửa gỗ",
+      "material": "Hợp kim",
+      "color": "Đen",
+      "size": "Tiêu chuẩn",
+      "origin": "Việt Nam",
+      "price": 65000,
+      "unit": "bộ",
+      "stock": 160,
+      "featured": false
+    },
+    {
+      "id": "BT-127",
+      "slug": "gia-treo-quan-9-thanh",
+      "name": "Giá treo quần 9 thanh",
+      "code": "BT-127",
+      "category": "phu-kien-tu-ao",
+      "subcategory": "Giá treo quần",
+      "image": "/images/catalog/wardrobe-hd.jpg",
+      "gallery": [
+        "/images/catalog/wardrobe-hd.jpg"
+      ],
+      "brand": "Hettich",
+      "specification": "Oval · Dài 1m",
+      "material": "Inox 304",
+      "color": "Bạc",
+      "size": "Tiêu chuẩn",
+      "origin": "Đức",
+      "price": 580000,
+      "unit": "cây",
+      "stock": 165,
+      "featured": false
+    },
+    {
+      "id": "BT-128",
+      "slug": "ke-goc-inox-40mm",
+      "name": "Ke góc inox 40mm",
+      "code": "BT-128",
+      "category": "phu-kien-lap-dat",
+      "subcategory": "Ke góc",
+      "image": "/images/catalog/hardware-hd.jpg",
+      "gallery": [
+        "/images/catalog/hardware-hd.jpg"
+      ],
+      "brand": "Hafele",
+      "specification": "Kính 8–12mm",
+      "material": "Inox 304",
+      "color": "Bạc",
+      "size": "40mm",
+      "origin": "Đức",
+      "price": 9000,
+      "oldPrice": 11000,
+      "unit": "cái",
+      "stock": 170,
+      "featured": false
+    },
+    {
+      "id": "HF-499.21.232",
+      "code": "499.21.232",
+      "slug": "hafele-499-21-232",
+      "name": "Khóa điện tử Hafele ALPHA AL2501B",
+      "category": "khoa",
+      "subcategory": "Khóa điện tử",
+      "image": "/images/locks/499-21-232.jpg",
+      "gallery": [
+        "/images/locks/499-21-232.jpg"
+      ],
+      "brand": "Hafele",
+      "specification": "Khóa điện tử",
+      "material": "Chưa cập nhật",
+      "color": "Theo phiên bản",
+      "size": "Theo mã hàng",
+      "origin": "Theo nhãn sản phẩm",
+      "price": 7884000,
+      "unit": "bộ",
+      "stock": 40,
+      "featured": false
+    },
+    {
+      "id": "HF-499.21.234",
+      "code": "499.21.234",
+      "slug": "hafele-499-21-234",
+      "name": "Khóa điện tử Hafele SEVEN ML2503B",
+      "category": "khoa",
+      "subcategory": "Khóa điện tử",
+      "image": "/images/locks/499-21-234.jpg",
+      "gallery": [
+        "/images/locks/499-21-234.jpg"
+      ],
+      "brand": "Hafele",
+      "specification": "Khóa điện tử",
+      "material": "Chưa cập nhật",
+      "color": "Theo phiên bản",
+      "size": "Theo mã hàng",
+      "origin": "Theo nhãn sản phẩm",
+      "price": 9521000,
+      "unit": "bộ",
+      "stock": 40,
+      "featured": false
+    },
+    {
+      "id": "HF-912.21.048",
+      "code": "912.21.048",
+      "slug": "hafele-912-21-048",
+      "name": "Khóa điện tử Hafele ML2502B",
+      "category": "khoa",
+      "subcategory": "Khóa điện tử",
+      "image": "/images/locks/912-21-048.jpg",
+      "gallery": [
+        "/images/locks/912-21-048.jpg"
+      ],
+      "brand": "Hafele",
+      "specification": "Khóa điện tử",
+      "material": "Chưa cập nhật",
+      "color": "Theo phiên bản",
+      "size": "Theo mã hàng",
+      "origin": "Theo nhãn sản phẩm",
+      "price": 11868000,
+      "unit": "bộ",
+      "stock": 40,
+      "featured": false
+    },
+    {
+      "id": "HF-912.21.046",
+      "code": "912.21.046",
+      "slug": "hafele-912-21-046",
+      "name": "Khóa điện tử Hafele MP2503B",
+      "category": "khoa",
+      "subcategory": "Khóa điện tử",
+      "image": "/images/locks/912-21-046.jpg",
+      "gallery": [
+        "/images/locks/912-21-046.jpg"
+      ],
+      "brand": "Hafele",
+      "specification": "Khóa điện tử",
+      "material": "Chưa cập nhật",
+      "color": "Theo phiên bản",
+      "size": "Theo mã hàng",
+      "origin": "Theo nhãn sản phẩm",
+      "price": 16751000,
+      "unit": "bộ",
+      "stock": 40,
+      "featured": false
+    },
+    {
+      "id": "HF-499.21.226",
+      "code": "499.21.226",
+      "slug": "hafele-499-21-226",
+      "name": "Khóa điện tử Hafele Nova MR2501B",
+      "category": "khoa",
+      "subcategory": "Khóa điện tử",
+      "image": "/images/locks/499-21-226.jpg",
+      "gallery": [
+        "/images/locks/499-21-226.jpg"
+      ],
+      "brand": "Hafele",
+      "specification": "Khóa điện tử",
+      "material": "Chưa cập nhật",
+      "color": "Theo phiên bản",
+      "size": "Theo mã hàng",
+      "origin": "Theo nhãn sản phẩm",
+      "price": 9504000,
+      "unit": "bộ",
+      "stock": 40,
+      "featured": false
+    },
+    {
+      "id": "HF-499.63.636",
+      "code": "499.63.636",
+      "slug": "hafele-499-63-636",
+      "name": "Bộ khóa tay nắm gạt Hafele DIY Set E",
+      "category": "khoa",
+      "subcategory": "Khóa cửa",
+      "image": "/images/locks/499-63-636.jpg",
+      "gallery": [
+        "/images/locks/499-63-636.jpg"
+      ],
+      "brand": "Hafele",
+      "specification": "Khóa cửa",
+      "material": "Chưa cập nhật",
+      "color": "Theo phiên bản",
+      "size": "Theo mã hàng",
+      "origin": "Theo nhãn sản phẩm",
+      "price": 1512000,
+      "unit": "bộ",
+      "stock": 40,
+      "featured": false
+    },
+    {
+      "id": "HF-499.63.628",
+      "code": "499.63.628",
+      "slug": "hafele-499-63-628",
+      "name": "Bộ khóa tay nắm gạt Hafele DIY Set D",
+      "category": "khoa",
+      "subcategory": "Khóa cửa",
+      "image": "/images/locks/499-63-628.jpg",
+      "gallery": [
+        "/images/locks/499-63-628.jpg"
+      ],
+      "brand": "Hafele",
+      "specification": "Khóa cửa",
+      "material": "Chưa cập nhật",
+      "color": "Theo phiên bản",
+      "size": "Theo mã hàng",
+      "origin": "Theo nhãn sản phẩm",
+      "price": 1512000,
+      "unit": "bộ",
+      "stock": 40,
+      "featured": false
+    },
+    {
+      "id": "HF-499.63.620",
+      "code": "499.63.620",
+      "slug": "hafele-499-63-620",
+      "name": "Bộ khóa tay nắm gạt Hafele DIY Set C",
+      "category": "khoa",
+      "subcategory": "Khóa cửa",
+      "image": "/images/locks/499-63-620.jpg",
+      "gallery": [
+        "/images/locks/499-63-620.jpg"
+      ],
+      "brand": "Hafele",
+      "specification": "Khóa cửa",
+      "material": "Chưa cập nhật",
+      "color": "Theo phiên bản",
+      "size": "Theo mã hàng",
+      "origin": "Theo nhãn sản phẩm",
+      "price": 1512000,
+      "unit": "bộ",
+      "stock": 40,
+      "featured": false
+    },
+    {
+      "id": "HF-499.63.612",
+      "code": "499.63.612",
+      "slug": "hafele-499-63-612",
+      "name": "Bộ khóa tay nắm gạt Hafele DIY Set B",
+      "category": "khoa",
+      "subcategory": "Khóa cửa",
+      "image": "/images/locks/499-63-612.jpg",
+      "gallery": [
+        "/images/locks/499-63-612.jpg"
+      ],
+      "brand": "Hafele",
+      "specification": "Khóa cửa",
+      "material": "Chưa cập nhật",
+      "color": "Theo phiên bản",
+      "size": "Theo mã hàng",
+      "origin": "Theo nhãn sản phẩm",
+      "price": 1512000,
+      "unit": "bộ",
+      "stock": 40,
+      "featured": false
+    },
+    {
+      "id": "HF-499.63.604",
+      "code": "499.63.604",
+      "slug": "hafele-499-63-604",
+      "name": "Bộ khóa tay nắm gạt Hafele DIY Set A",
+      "category": "khoa",
+      "subcategory": "Khóa cửa",
+      "image": "/images/locks/499-63-604.jpg",
+      "gallery": [
+        "/images/locks/499-63-604.jpg"
+      ],
+      "brand": "Hafele",
+      "specification": "Khóa cửa",
+      "material": "Chưa cập nhật",
+      "color": "Theo phiên bản",
+      "size": "Theo mã hàng",
+      "origin": "Theo nhãn sản phẩm",
+      "price": 1512000,
+      "unit": "bộ",
+      "stock": 40,
+      "featured": false
+    },
+    {
+      "id": "HF-232.26.621",
+      "code": "232.26.621",
+      "slug": "hafele-232-26-621",
+      "name": "Khóa vuông chốt chết Hafele Symo 3000",
+      "category": "khoa",
+      "subcategory": "Khóa tủ",
+      "image": "/images/locks/232-26-621.jpg",
+      "gallery": [
+        "/images/locks/232-26-621.jpg"
+      ],
+      "brand": "Hafele",
+      "specification": "Mạ nicken",
+      "material": "Hợp kim kẽm",
+      "color": "Mạ nicken",
+      "size": "Theo mã hàng",
+      "origin": "Theo nhãn sản phẩm",
+      "price": 62000,
+      "unit": "bộ",
+      "stock": 40,
+      "featured": false
+    },
+    {
+      "id": "HF-234.98.611",
+      "code": "234.98.611",
+      "slug": "hafele-234-98-611",
+      "name": "Khóa trung tâm Hafele Symo 3000",
+      "category": "khoa",
+      "subcategory": "Khóa tủ",
+      "image": "/images/locks/234-98-611.jpg",
+      "gallery": [
+        "/images/locks/234-98-611.jpg"
+      ],
+      "brand": "Hafele",
+      "specification": "Mạ nicken",
+      "material": "Hợp kim kẽm",
+      "color": "Mạ nicken",
+      "size": "Theo mã hàng",
+      "origin": "Theo nhãn sản phẩm",
+      "price": 46000,
+      "unit": "bộ",
+      "stock": 40,
+      "featured": false
+    },
+    {
+      "id": "HF-235.19.211",
+      "code": "235.19.211",
+      "slug": "hafele-235-19-211",
+      "name": "Lõi khóa cốp Hafele Econo",
+      "category": "khoa",
+      "subcategory": "Khóa tủ",
+      "image": "/images/locks/235-19-211.jpg",
+      "gallery": [
+        "/images/locks/235-19-211.jpg"
+      ],
+      "brand": "Hafele",
+      "specification": "Crôm bóng",
+      "material": "Hợp kim kẽm",
+      "color": "Crôm bóng",
+      "size": "Theo mã hàng",
+      "origin": "Theo nhãn sản phẩm",
+      "price": 52000,
+      "unit": "bộ",
+      "stock": 40,
+      "featured": false
+    },
+    {
+      "id": "HF-210.11.001",
+      "code": "210.11.001",
+      "slug": "hafele-210-11-001",
+      "name": "Chìa chủ Hafele Symo 3000",
+      "category": "khoa",
+      "subcategory": "Khóa tủ",
+      "image": "/images/locks/210-11-001.jpg",
+      "gallery": [
+        "/images/locks/210-11-001.jpg"
+      ],
+      "brand": "Hafele",
+      "specification": "Mạ nicken",
+      "material": "Thép",
+      "color": "Mạ nicken",
+      "size": "Theo mã hàng",
+      "origin": "Theo nhãn sản phẩm",
+      "price": 75000,
+      "unit": "bộ",
+      "stock": 40,
+      "featured": false
+    },
+    {
+      "id": "HF-235.88.621",
+      "code": "235.88.621",
+      "slug": "hafele-235-88-621",
+      "name": "Vỏ khóa cốp Hafele Symo 3000",
+      "category": "khoa",
+      "subcategory": "Khóa tủ",
+      "image": "/images/locks/235-88-621.jpg",
+      "gallery": [
+        "/images/locks/235-88-621.jpg"
+      ],
+      "brand": "Hafele",
+      "specification": "Mạ nicken bóng",
+      "material": "Hợp kim kẽm",
+      "color": "Mạ nicken bóng",
+      "size": "Theo mã hàng",
+      "origin": "Theo nhãn sản phẩm",
+      "price": 62000,
+      "unit": "bộ",
+      "stock": 40,
+      "featured": false
+    },
+    {
+      "id": "HF-903.92.559",
+      "code": "903.92.559",
+      "slug": "hafele-903-92-559",
+      "name": "Tay nắm gạt Hafele có nắp che",
+      "category": "khoa",
+      "subcategory": "Tay nắm cửa",
+      "image": "/images/locks/903-92-559.jpg",
+      "gallery": [
+        "/images/locks/903-92-559.jpg"
+      ],
+      "brand": "Hafele",
+      "specification": "Tay nắm cửa",
+      "material": "Chưa cập nhật",
+      "color": "Theo phiên bản",
+      "size": "Theo mã hàng",
+      "origin": "Theo nhãn sản phẩm",
+      "price": 994000,
+      "unit": "bộ",
+      "stock": 40,
+      "featured": false
+    },
+    {
+      "id": "HF-903.99.368",
+      "code": "903.99.368",
+      "slug": "hafele-903-99-368",
+      "name": "Tay nắm gạt Hafele có nắp che PVD",
+      "category": "khoa",
+      "subcategory": "Tay nắm cửa",
+      "image": "/images/locks/903-99-368.jpg",
+      "gallery": [
+        "/images/locks/903-99-368.jpg"
+      ],
+      "brand": "Hafele",
+      "specification": "Đen mờ PVD",
+      "material": "Inox 304",
+      "color": "Đen mờ PVD",
+      "size": "Theo mã hàng",
+      "origin": "Theo nhãn sản phẩm",
+      "price": 930000,
+      "unit": "bộ",
+      "stock": 40,
+      "featured": false
+    },
+    {
+      "id": "HF-903.98.463",
+      "code": "903.98.463",
+      "slug": "hafele-903-98-463",
+      "name": "Tay nắm gạt đế dài Hafele chữ nhật",
+      "category": "khoa",
+      "subcategory": "Tay nắm cửa",
+      "image": "/images/locks/903-98-463.jpg",
+      "gallery": [
+        "/images/locks/903-98-463.jpg"
+      ],
+      "brand": "Hafele",
+      "specification": "Inox mờ",
+      "material": "Inox 304",
+      "color": "Inox mờ",
+      "size": "Theo mã hàng",
+      "origin": "Theo nhãn sản phẩm",
+      "price": 1479000,
+      "unit": "bộ",
+      "stock": 40,
+      "featured": false
+    },
+    {
+      "id": "HF-903.98.464",
+      "code": "903.98.464",
+      "slug": "hafele-903-98-464",
+      "name": "Tay nắm gạt đế dài Hafele chữ nhật dẹt",
+      "category": "khoa",
+      "subcategory": "Tay nắm cửa",
+      "image": "/images/locks/903-98-464.jpg",
+      "gallery": [
+        "/images/locks/903-98-464.jpg"
+      ],
+      "brand": "Hafele",
+      "specification": "Inox mờ",
+      "material": "Inox 304",
+      "color": "Inox mờ",
+      "size": "Theo mã hàng",
+      "origin": "Theo nhãn sản phẩm",
+      "price": 2256000,
+      "unit": "bộ",
+      "stock": 40,
+      "featured": false
+    },
+    {
+      "id": "HF-903.98.462",
+      "code": "903.98.462",
+      "slug": "hafele-903-98-462",
+      "name": "Tay nắm gạt đế dài Hafele",
+      "category": "khoa",
+      "subcategory": "Tay nắm cửa",
+      "image": "/images/locks/903-98-462.jpg",
+      "gallery": [
+        "/images/locks/903-98-462.jpg"
+      ],
+      "brand": "Hafele",
+      "specification": "Tay nắm cửa",
+      "material": "Chưa cập nhật",
+      "color": "Theo phiên bản",
+      "size": "Theo mã hàng",
+      "origin": "Theo nhãn sản phẩm",
+      "price": 2085000,
+      "unit": "bộ",
+      "stock": 40,
+      "featured": false
+    },
+    {
+      "id": "HF-950.45.015",
+      "code": "950.45.015",
+      "slug": "hafele-950-45-015",
+      "name": "Thanh chắn bụi tự động Hafele",
+      "category": "khoa",
+      "subcategory": "Phụ kiện cửa",
+      "image": "/images/locks/950-45-015.jpg",
+      "gallery": [
+        "/images/locks/950-45-015.jpg"
+      ],
+      "brand": "Hafele",
+      "specification": "Xám",
+      "material": "Nhôm, silicone",
+      "color": "Xám",
+      "size": "Theo mã hàng",
+      "origin": "Theo nhãn sản phẩm",
+      "price": 936000,
+      "unit": "bộ",
+      "stock": 40,
+      "featured": false
+    },
+    {
+      "id": "HF-489.15.001",
+      "code": "489.15.001",
+      "slug": "hafele-489-15-001",
+      "name": "Chốt an toàn Hafele",
+      "category": "khoa",
+      "subcategory": "Phụ kiện cửa",
+      "image": "/images/locks/489-15-001.jpg",
+      "gallery": [
+        "/images/locks/489-15-001.jpg"
+      ],
+      "brand": "Hafele",
+      "specification": "Phụ kiện cửa",
+      "material": "Hợp kim kẽm",
+      "color": "Theo phiên bản",
+      "size": "Theo mã hàng",
+      "origin": "Theo nhãn sản phẩm",
+      "price": 236000,
+      "unit": "bộ",
+      "stock": 40,
+      "featured": false
+    },
+    {
+      "id": "HF-489.70.230",
+      "code": "489.70.230",
+      "slug": "hafele-489-70-230",
+      "name": "Chặn cửa bán nguyệt Hafele",
+      "category": "khoa",
+      "subcategory": "Phụ kiện cửa",
+      "image": "/images/locks/489-70-230.jpg",
+      "gallery": [
+        "/images/locks/489-70-230.jpg"
+      ],
+      "brand": "Hafele",
+      "specification": "Phụ kiện cửa",
+      "material": "Hợp kim kẽm",
+      "color": "Theo phiên bản",
+      "size": "Theo mã hàng",
+      "origin": "Theo nhãn sản phẩm",
+      "price": 118000,
+      "unit": "bộ",
+      "stock": 40,
+      "featured": false
+    },
+    {
+      "id": "HF-489.70.203",
+      "code": "489.70.203",
+      "slug": "hafele-489-70-203",
+      "name": "Chặn cửa nam châm Hafele",
+      "category": "khoa",
+      "subcategory": "Phụ kiện cửa",
+      "image": "/images/locks/489-70-203.jpg",
+      "gallery": [
+        "/images/locks/489-70-203.jpg"
+      ],
+      "brand": "Hafele",
+      "specification": "Phụ kiện cửa",
+      "material": "Hợp kim kẽm",
+      "color": "Theo phiên bản",
+      "size": "Theo mã hàng",
+      "origin": "Theo nhãn sản phẩm",
+      "price": 186000,
+      "unit": "bộ",
+      "stock": 40,
+      "featured": false
+    },
+    {
+      "id": "HF-489.71.450",
+      "code": "489.71.450",
+      "slug": "hafele-489-71-450",
+      "name": "Chốt âm Hafele",
+      "category": "khoa",
+      "subcategory": "Phụ kiện cửa",
+      "image": "/images/locks/489-71-450.jpg",
+      "gallery": [
+        "/images/locks/489-71-450.jpg"
+      ],
+      "brand": "Hafele",
+      "specification": "Phụ kiện cửa",
+      "material": "Chưa cập nhật",
+      "color": "Theo phiên bản",
+      "size": "Theo mã hàng",
+      "origin": "Theo nhãn sản phẩm",
+      "price": 236000,
+      "unit": "bộ",
+      "stock": 40,
+      "featured": false
+    }
+  ],
+  "categories": [
+    {
+      "slug": "phu-kien-bep",
+      "name": "Phụ kiện bếp",
+      "image": "/images/catalog/kitchen-storage-hd.jpg",
+      "description": "Phụ kiện tủ bếp chính hãng, tối ưu lưu trữ và thuận tiện trong từng thao tác.",
+      "subcategories": [
+        "Giá bát nâng hạ",
+        "Giá xoong nồi",
+        "Thùng rác âm tủ",
+        "Kệ gia vị",
+        "Kệ góc",
+        "Phụ kiện tủ bếp"
+      ]
+    },
+    {
+      "slug": "led-tu-ke",
+      "name": "LED tủ/kệ",
+      "image": "/images/hero/kitchen-lighting-hd.jpg",
+      "description": "Ánh sáng đồng bộ cho tủ bếp, tủ áo và kệ trang trí.",
+      "subcategories": [
+        "LED dây",
+        "Thanh nhôm LED",
+        "Nguồn LED",
+        "Cảm biến"
+      ]
+    },
+    {
+      "slug": "ray-truot",
+      "name": "Ray trượt",
+      "image": "/images/catalog/drawer-undermount-hd.jpg",
+      "description": "Ray trượt bền bỉ, vận hành êm và phù hợp nhiều tải trọng.",
+      "subcategories": [
+        "Ray âm",
+        "Ray bi",
+        "Ray giảm chấn"
+      ]
+    },
+    {
+      "slug": "ban-le",
+      "name": "Bản lề",
+      "image": "/images/catalog/hinge-hd.jpg",
+      "description": "Bản lề chính hãng cho cánh tủ đóng mở nhẹ nhàng, chính xác.",
+      "subcategories": [
+        "Bản lề giảm chấn",
+        "Bản lề bật",
+        "Phụ kiện bản lề"
+      ]
+    },
+    {
+      "slug": "tay-nam",
+      "name": "Tay nắm",
+      "image": "/images/catalog/handle-installed-hd.jpg",
+      "description": "Tay nắm và núm tủ hoàn thiện từng chi tiết nội thất.",
+      "subcategories": [
+        "Tay nắm thanh",
+        "Núm tủ",
+        "Tay nắm âm"
+      ]
+    },
+    {
+      "slug": "khoa",
+      "name": "Khóa",
+      "image": "/images/locks/499-21-226.jpg",
+      "description": "Giải pháp khóa cho cửa, tủ và không gian sống.",
+      "subcategories": [
+        "Khóa cửa",
+        "Khóa tủ",
+        "Khóa điện tử",
+        "Tay nắm cửa",
+        "Phụ kiện cửa"
+      ]
+    },
+    {
+      "slug": "phu-kien-tu-ao",
+      "name": "Phụ kiện tủ áo",
+      "image": "/images/catalog/wardrobe-hd.jpg",
+      "description": "Sắp xếp trang phục gọn gàng với phụ kiện tủ áo đồng bộ.",
+      "subcategories": [
+        "Thanh treo",
+        "Giá treo quần",
+        "Kệ giày"
+      ]
+    },
+    {
+      "slug": "phu-kien-lap-dat",
+      "name": "Phụ kiện lắp đặt",
+      "image": "/images/catalog/hardware-hd.jpg",
+      "description": "Vật tư và phụ kiện lắp đặt cho xưởng nội thất, công trình.",
+      "subcategories": [
+        "Vít và liên kết",
+        "Ke góc",
+        "Kẹp kính"
+      ]
+    }
+  ],
+  "guides": [
+    {
+      "slug": "chon-ban-le-theo-loai-canh",
+      "title": "Chọn bản lề theo loại cánh",
+      "description": "Phân biệt cánh phủ bì, nửa phủ và lọt lòng để chọn đúng bản lề.",
+      "image": "/images/catalog/hinge.png",
+      "category": "ban-le",
+      "minutes": 5
+    },
+    {
+      "slug": "chon-ray-theo-tai-trong",
+      "title": "Chọn ray theo tải trọng",
+      "description": "So sánh ray bi, ray âm và tải trọng phù hợp từng ngăn kéo.",
+      "image": "/images/catalog/drawer.png",
+      "category": "ray-truot",
+      "minutes": 6
+    },
+    {
+      "slug": "chon-led-theo-vi-tri-lap",
+      "title": "Chọn LED theo vị trí lắp",
+      "description": "Ánh sáng, nguồn điện và cảm biến cho tủ bếp, tủ áo, kệ trang trí.",
+      "image": "/images/solutions/bo-led-tu-bep.png",
+      "category": "led-tu-ke",
+      "minutes": 4
+    },
+    {
+      "slug": "chon-phu-kien-bep",
+      "title": "Chọn phụ kiện bếp theo nhu cầu",
+      "description": "Sắp xếp tủ bếp gọn gàng với giá bát, kệ gia vị và rổ kéo.",
+      "image": "/images/catalog/kitchen.png",
+      "category": "phu-kien-bep",
+      "minutes": 7
+    }
+  ],
+  "customers": [
+    {
+      "id": "KH001",
+      "name": "Xưởng nội thất Minh An",
+      "contact": "Nguyễn Minh An",
+      "phone": "0901 000 101",
+      "group": "Xưởng nội thất",
+      "branch": "Quy Nhơn",
+      "status": "Đang hoạt động",
+      "limit": 50000000,
+      "debt": 12400000,
+      "overdue": 0
+    },
+    {
+      "id": "KH002",
+      "name": "Nội thất An Phát",
+      "contact": "Trần Hoàng Phát",
+      "phone": "0901 000 102",
+      "group": "Thiết kế - thi công",
+      "branch": "Quy Nhơn",
+      "status": "Đang hoạt động",
+      "limit": 25000000,
+      "debt": 28500000,
+      "overdue": 3200000
+    },
+    {
+      "id": "KH003",
+      "name": "Xưởng gỗ Thành Đạt",
+      "contact": "Lê Thành Đạt",
+      "phone": "0901 000 103",
+      "group": "Xưởng nội thất",
+      "branch": "Quy Nhơn",
+      "status": "Chờ duyệt",
+      "limit": 0,
+      "debt": 0,
+      "overdue": 0
+    },
+    {
+      "id": "KH004",
+      "name": "Đội thi công Hùng Sơn",
+      "contact": "Phạm Hùng Sơn",
+      "phone": "0901 000 104",
+      "group": "Thợ - đội thi công",
+      "branch": "Quy Nhơn",
+      "status": "Đang hoạt động",
+      "limit": 15000000,
+      "debt": 4500000,
+      "overdue": 1500000
+    },
+    {
+      "id": "KH005",
+      "name": "Nội thất Mộc Việt",
+      "contact": "Võ Thanh Bình",
+      "phone": "0901 000 105",
+      "group": "Xưởng nội thất",
+      "branch": "Tuy Hòa",
+      "status": "Đang hoạt động",
+      "limit": 40000000,
+      "debt": 8200000,
+      "overdue": 0
+    },
+    {
+      "id": "KH006",
+      "name": "Kiến trúc Nam Phương",
+      "contact": "Đặng Hải Nam",
+      "phone": "0901 000 106",
+      "group": "Thiết kế - thi công",
+      "branch": "Nha Trang",
+      "status": "Đang hoạt động",
+      "limit": 30000000,
+      "debt": 19400000,
+      "overdue": 2200000
+    },
+    {
+      "id": "KH007",
+      "name": "Xưởng nội thất Đại Lộc",
+      "contact": "Nguyễn Đại Lộc",
+      "phone": "0901 000 107",
+      "group": "Xưởng nội thất",
+      "branch": "Tuy Hòa",
+      "status": "Chờ duyệt",
+      "limit": 0,
+      "debt": 0,
+      "overdue": 0
+    }
+  ],
+  "orders": [
+    {
+      "id": "BT26100001",
+      "customerId": "KH001",
+      "customerName": "Xưởng nội thất Minh An",
+      "branch": "Quy Nhơn",
+      "date": "2026-10-04",
+      "channel": "B2B",
+      "source": "Website B2B",
+      "status": "Chờ xác nhận",
+      "items": [
+        {
+          "productId": "311.72.501",
+          "quantity": 5,
+          "unitPrice": 28000
+        },
+        {
+          "productId": "BT-RK-01",
+          "quantity": 6,
+          "unitPrice": 850000
+        }
+      ],
+      "total": 5240000,
+      "credit": false,
+      "approvalId": "YC001"
+    },
+    {
+      "id": "BT26100002",
+      "customerId": "KH002",
+      "customerName": "Nội thất An Phát",
+      "branch": "Quy Nhơn",
+      "date": "2026-10-04",
+      "channel": "B2B",
+      "source": "Website B2B",
+      "status": "Chờ xác nhận",
+      "items": [
+        {
+          "productId": "LED-12V-8W",
+          "quantity": 8,
+          "unitPrice": 45000
+        },
+        {
+          "productId": "TN-201",
+          "quantity": 9,
+          "unitPrice": 32000
+        }
+      ],
+      "total": 648000,
+      "credit": true,
+      "approvalId": "YC002"
+    },
+    {
+      "id": "BT26100003",
+      "customerId": null,
+      "customerName": "Lê Ngọc Mai",
+      "branch": "Quy Nhơn",
+      "date": "2026-10-04",
+      "channel": "B2C",
+      "source": "Website B2C",
+      "status": "Chờ xác nhận",
+      "items": [
+        {
+          "productId": "433.02.450",
+          "quantity": 1,
+          "unitPrice": 120000
+        },
+        {
+          "productId": "KL-101",
+          "quantity": 2,
+          "unitPrice": 280000
+        }
+      ],
+      "total": 680000,
+      "credit": false
+    },
+    {
+      "id": "BT26100004",
+      "customerId": "KH004",
+      "customerName": "Đội thi công Hùng Sơn",
+      "branch": "Quy Nhơn",
+      "date": "2026-10-03",
+      "channel": "B2B",
+      "source": "Website B2B",
+      "status": "Chờ soạn hàng",
+      "items": [
+        {
+          "productId": "BT-RK-01",
+          "quantity": 14,
+          "unitPrice": 850000
+        },
+        {
+          "productId": "311.72.501",
+          "quantity": 15,
+          "unitPrice": 28000
+        }
+      ],
+      "total": 12320000,
+      "credit": false
+    },
+    {
+      "id": "BT26100005",
+      "customerId": "KH001",
+      "customerName": "Xưởng nội thất Minh An",
+      "branch": "Quy Nhơn",
+      "date": "2026-10-03",
+      "channel": "B2B",
+      "source": "Website B2B",
+      "status": "Đang soạn",
+      "items": [
+        {
+          "productId": "TN-201",
+          "quantity": 17,
+          "unitPrice": 32000
+        },
+        {
+          "productId": "LED-12V-8W",
+          "quantity": 18,
+          "unitPrice": 45000
+        }
+      ],
+      "total": 1354000,
+      "credit": false
+    },
+    {
+      "id": "BT26100006",
+      "customerId": null,
+      "customerName": "Lê Ngọc Mai",
+      "branch": "Quy Nhơn",
+      "date": "2026-10-02",
+      "channel": "B2C",
+      "source": "Website B2C",
+      "status": "Sẵn sàng giao",
+      "items": [
+        {
+          "productId": "KL-101",
+          "quantity": 1,
+          "unitPrice": 280000
+        },
+        {
+          "productId": "433.02.450",
+          "quantity": 2,
+          "unitPrice": 120000
+        }
+      ],
+      "total": 520000,
+      "credit": false
+    },
+    {
+      "id": "BT26100007",
+      "customerId": "KH004",
+      "customerName": "Đội thi công Hùng Sơn",
+      "branch": "Quy Nhơn",
+      "date": "2026-10-01",
+      "channel": "B2B",
+      "source": "Website B2B",
+      "status": "Đang giao",
+      "items": [
+        {
+          "productId": "311.72.501",
+          "quantity": 8,
+          "unitPrice": 28000
+        },
+        {
+          "productId": "BT-RK-01",
+          "quantity": 9,
+          "unitPrice": 850000
+        }
+      ],
+      "total": 7874000,
+      "credit": false
+    },
+    {
+      "id": "BT26100008",
+      "customerId": "KH001",
+      "customerName": "Xưởng nội thất Minh An",
+      "branch": "Quy Nhơn",
+      "date": "2026-09-30",
+      "channel": "B2B",
+      "source": "Website B2B",
+      "status": "Hoàn tất",
+      "items": [
+        {
+          "productId": "LED-12V-8W",
+          "quantity": 11,
+          "unitPrice": 45000
+        },
+        {
+          "productId": "TN-201",
+          "quantity": 12,
+          "unitPrice": 32000
+        }
+      ],
+      "total": 879000,
+      "credit": false
+    },
+    {
+      "id": "BT26100009",
+      "customerId": null,
+      "customerName": "Lê Ngọc Mai",
+      "branch": "Quy Nhơn",
+      "date": "2026-09-28",
+      "channel": "B2C",
+      "source": "Website B2C",
+      "status": "Hoàn tất",
+      "items": [
+        {
+          "productId": "433.02.450",
+          "quantity": 1,
+          "unitPrice": 120000
+        },
+        {
+          "productId": "KL-101",
+          "quantity": 2,
+          "unitPrice": 280000
+        }
+      ],
+      "total": 680000,
+      "credit": false
+    },
+    {
+      "id": "BT26100010",
+      "customerId": "KH001",
+      "customerName": "Xưởng nội thất Minh An",
+      "branch": "Quy Nhơn",
+      "date": "2026-09-26",
+      "channel": "B2B",
+      "source": "Website B2B",
+      "status": "Hoàn tất",
+      "items": [
+        {
+          "productId": "BT-RK-01",
+          "quantity": 17,
+          "unitPrice": 850000
+        },
+        {
+          "productId": "311.72.501",
+          "quantity": 18,
+          "unitPrice": 28000
+        }
+      ],
+      "total": 14954000,
+      "credit": false
+    },
+    {
+      "id": "BT26100011",
+      "customerId": "KH004",
+      "customerName": "Đội thi công Hùng Sơn",
+      "branch": "Quy Nhơn",
+      "date": "2026-09-19",
+      "channel": "B2B",
+      "source": "Website B2B",
+      "status": "Đã hủy",
+      "items": [
+        {
+          "productId": "TN-201",
+          "quantity": 5,
+          "unitPrice": 32000
+        },
+        {
+          "productId": "LED-12V-8W",
+          "quantity": 6,
+          "unitPrice": 45000
+        }
+      ],
+      "total": 430000,
+      "credit": false,
+      "cancelReason": "Khách điều chỉnh tiến độ công trình."
+    },
+    {
+      "id": "BT26100012",
+      "customerId": null,
+      "customerName": "Lê Ngọc Mai",
+      "branch": "Quy Nhơn",
+      "date": "2026-09-14",
+      "channel": "B2C",
+      "source": "Website B2C",
+      "status": "Hoàn tất",
+      "items": [
+        {
+          "productId": "KL-101",
+          "quantity": 1,
+          "unitPrice": 280000
+        },
+        {
+          "productId": "433.02.450",
+          "quantity": 2,
+          "unitPrice": 120000
+        }
+      ],
+      "total": 520000,
+      "credit": false
+    },
+    {
+      "id": "BT26100013",
+      "customerId": "KH005",
+      "customerName": "Nội thất Mộc Việt",
+      "branch": "Tuy Hòa",
+      "date": "2026-10-04",
+      "channel": "B2B",
+      "source": "Website B2B",
+      "status": "Chờ xác nhận",
+      "items": [
+        {
+          "productId": "311.72.501",
+          "quantity": 11,
+          "unitPrice": 28000
+        },
+        {
+          "productId": "BT-RK-01",
+          "quantity": 12,
+          "unitPrice": 850000
+        }
+      ],
+      "total": 10508000,
+      "credit": false
+    },
+    {
+      "id": "BT26100014",
+      "customerId": "KH005",
+      "customerName": "Nội thất Mộc Việt",
+      "branch": "Tuy Hòa",
+      "date": "2026-10-02",
+      "channel": "B2B",
+      "source": "Website B2B",
+      "status": "Đang giao",
+      "items": [
+        {
+          "productId": "LED-12V-8W",
+          "quantity": 14,
+          "unitPrice": 45000
+        },
+        {
+          "productId": "TN-201",
+          "quantity": 15,
+          "unitPrice": 32000
+        }
+      ],
+      "total": 1110000,
+      "credit": false
+    },
+    {
+      "id": "BT26100015",
+      "customerId": null,
+      "customerName": "Lê Ngọc Mai",
+      "branch": "Tuy Hòa",
+      "date": "2026-09-30",
+      "channel": "B2C",
+      "source": "Website B2C",
+      "status": "Hoàn tất",
+      "items": [
+        {
+          "productId": "433.02.450",
+          "quantity": 1,
+          "unitPrice": 120000
+        },
+        {
+          "productId": "KL-101",
+          "quantity": 2,
+          "unitPrice": 280000
+        }
+      ],
+      "total": 680000,
+      "credit": false
+    },
+    {
+      "id": "BT26100016",
+      "customerId": "KH006",
+      "customerName": "Kiến trúc Nam Phương",
+      "branch": "Nha Trang",
+      "date": "2026-10-04",
+      "channel": "B2B",
+      "source": "Website B2B",
+      "status": "Chờ xác nhận",
+      "items": [
+        {
+          "productId": "BT-RK-01",
+          "quantity": 5,
+          "unitPrice": 850000
+        },
+        {
+          "productId": "311.72.501",
+          "quantity": 6,
+          "unitPrice": 28000
+        }
+      ],
+      "total": 4418000,
+      "credit": false,
+      "approvalId": "YC003"
+    },
+    {
+      "id": "BT26100017",
+      "customerId": "KH006",
+      "customerName": "Kiến trúc Nam Phương",
+      "branch": "Nha Trang",
+      "date": "2026-10-02",
+      "channel": "B2B",
+      "source": "Website B2B",
+      "status": "Chờ soạn hàng",
+      "items": [
+        {
+          "productId": "TN-201",
+          "quantity": 8,
+          "unitPrice": 32000
+        },
+        {
+          "productId": "LED-12V-8W",
+          "quantity": 9,
+          "unitPrice": 45000
+        }
+      ],
+      "total": 661000,
+      "credit": false
+    },
+    {
+      "id": "BT26100018",
+      "customerId": null,
+      "customerName": "Lê Ngọc Mai",
+      "branch": "Nha Trang",
+      "date": "2026-09-29",
+      "channel": "B2C",
+      "source": "Website B2C",
+      "status": "Hoàn tất",
+      "items": [
+        {
+          "productId": "KL-101",
+          "quantity": 1,
+          "unitPrice": 280000
+        },
+        {
+          "productId": "433.02.450",
+          "quantity": 2,
+          "unitPrice": 120000
+        }
+      ],
+      "total": 520000,
+      "credit": false
+    }
+  ],
+  "approvals": [
+    {
+      "id": "YC001",
+      "orderId": "BT26100001",
+      "customerId": "KH001",
+      "branch": "Quy Nhơn",
+      "type": "Giá đặc biệt",
+      "requestedBy": "Inside Sales Quy Nhơn",
+      "reason": "Khách đề nghị giá dự án cho đơn phụ kiện tủ bếp. Cần duyệt trước khi xác nhận đơn.",
+      "status": "Chờ duyệt"
+    },
+    {
+      "id": "YC002",
+      "orderId": "BT26100002",
+      "customerId": "KH002",
+      "branch": "Quy Nhơn",
+      "type": "Công nợ",
+      "requestedBy": "Kế toán Quy Nhơn",
+      "reason": "Khách đang vượt hạn mức và có khoản quá hạn; đề nghị xem xét ngoại lệ cho đơn này.",
+      "status": "Chờ duyệt"
+    },
+    {
+      "id": "YC003",
+      "orderId": "BT26100016",
+      "customerId": "KH006",
+      "branch": "Nha Trang",
+      "type": "Giá đặc biệt",
+      "requestedBy": "Inside Sales Nha Trang",
+      "reason": "Đề nghị giá riêng cho công trình đang thi công.",
+      "status": "Chờ duyệt"
+    }
+  ]
+}

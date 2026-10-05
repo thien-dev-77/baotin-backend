@@ -1,0 +1,18 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: baotin_dev
+      POSTGRES_USER: baotin
+      POSTGRES_PASSWORD: ${LOCAL_DB_PASSWORD:?Set LOCAL_DB_PASSWORD}
+    ports:
+      - "127.0.0.1:5441:5432"
+    volumes:
+      - baotin_postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U baotin -d baotin_dev"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+volumes:
+  baotin_postgres:
