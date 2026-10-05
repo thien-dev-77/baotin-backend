@@ -8,6 +8,7 @@ import { randomUUID } from "node:crypto";
 import { AuthService, type AuthRequest } from "../auth/auth.service";
 import { DatabaseService } from "../database/database.service";
 import { AuditEntity, ProductEntity } from "../database/entities";
+import { runtimeAssetPath } from "../runtime-assets";
 
 @Controller("media")
 export class MediaController {
@@ -26,7 +27,7 @@ export class MediaController {
       if (!["jpeg", "png", "webp"].includes(metadata.format || "")) throw new Error("Invalid format");
       image = await processor.rotate().resize({ width: 2000, height: 2000, fit: "inside", withoutEnlargement: true }).webp({ quality: 88 }).toBuffer();
     } catch { throw new BadRequestException("Không đọc được ảnh hợp lệ."); }
-    const directory = resolve(process.env.MEDIA_DIR || "media", "uploads");
+    const directory = resolve(runtimeAssetPath(process.env.MEDIA_DIR || "media"), "uploads");
     await mkdir(directory, { recursive: true });
     const filename = `${randomUUID()}.webp`; const path = resolve(directory, filename);
     await writeFile(path, image, { flag: "wx" });

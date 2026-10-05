@@ -14,8 +14,10 @@ SHA-256 fingerprint:
 ```
 
 Set `DB_SSL=true` and `DB_SSL_CA_FILE=./certs/prod-ca-2021.crt` in the
-private backend env. Paths are relative to the backend working directory;
-use an absolute path when deploying from another directory.
+private backend env. Relative paths resolve against the source repository or
+the compiled runtime directory, independent of the working directory.
+`npm run build` copies this public certificate into `dist/certs/` for
+output-only deployments. Explicit absolute paths are used unchanged.
 DatabaseService keeps `rejectUnauthorized: true`, verifying both the CA
 chain and hostname. Do not use `NODE_TLS_REJECT_UNAUTHORIZED=0` or trust a
 certificate copied from an unverified database handshake.

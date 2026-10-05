@@ -48,10 +48,51 @@ Mat khau la SEED_PASSWORD trong env cua DB do; doi bien nay khong tu doi
 password tai khoan da seed.
 Khong co credentials that trong repo; mat khau demo lay tu env cua may chay.
 
-API hien bind 127.0.0.1:4000. Health: http://localhost:4000/api/health.
+API development mac dinh bind 127.0.0.1:4000. Health: http://localhost:4000/api/health.
+HOST co the ghi de; mac dinh production bind 0.0.0.0, development bind 127.0.0.1.
 Next.js dung BACKEND_URL=http://127.0.0.1:4000 va NEXT_PUBLIC_API_MODE=true,
 proxy /api/backend/* sang /api/*, /images/* sang /media/images/* va
 /media/* sang /media/*. Frontend origin phai nam trong FRONTEND_ORIGINS.
+
+## Deploy Cloud / Hostinger
+
+Build `npm run build` compile code va chep CA cong khai, seed mock, anh mau
+vao `dist/certs/`, `dist/seed/`, `dist/media/images/`. Khong chep private env,
+private keys hay uploads. Chi dung `tsc` se KHONG dong goi cac runtime assets.
+Duong dan tuong doi tim asset o repo goc, neu khong co thi dung ban kem theo
+compiled runtime; khong phu thuoc working directory cua cloud.
+
+Cau hinh: framework NestJS, Node.js 22.x, branch main, root `./`, build
+`npm run build`, output directory `dist`, entry file `main.js`.
+
+```dotenv
+NODE_ENV=production
+HOST=0.0.0.0
+COOKIE_SECURE=true
+SEED_MOCK_DATA=false
+DB_SSL=true
+DB_SSL_CA_FILE=./certs/prod-ca-2021.crt
+MEDIA_DIR=./media
+```
+
+PORT phai khop port reverse proxy/cloud cap; khong tu ghi de neu platform
+da cung cap PORT. FRONTEND_ORIGINS can domain HTTPS frontend dung thuc te.
+DATABASE_URL va JWT_SECRET chi nhap trong secret/env cua backend.
+Du lieu mock da seed trong Supabase se van ton tai khi SEED_MOCK_DATA=false;
+khong dat NODE_ENV=development chi de seed lai database dang co.
+Truoc production, backup va tat DB_SYNCHRONIZE sau khi schema da duoc tao.
+
+ENOENT la loi file/path khong ton tai, khong mac dinh la loi ket noi DB.
+Startup log chi in error code va path file thieu, khong in connection URL,
+error message/stack co the chua password. Kiem tra `/api/health` va
+`/media/images/locks/499-21-226.jpg` sau deploy; ca hai phai tra 200.
+
+Anh upload can persistent volume: MEDIA_DIR co the la absolute path cua
+volume chua ca `images/` va `uploads/`; anh mau can copy vao volume truoc.
+Khong coi `dist/media/uploads` la storage ben vung qua moi lan redeploy.
+Neu secret bi lo trong anh/log, doi DB password va JWT secret tren cac may
+chay. Doi SEED_PASSWORD KHONG doi password tai khoan da seed; can reset
+password cua cac tai khoan do va thu hoi sessions cu.
 
 ## Anh Va Du Lieu
 

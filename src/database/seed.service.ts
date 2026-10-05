@@ -1,12 +1,12 @@
 import { Injectable, OnApplicationBootstrap } from "@nestjs/common";
 import { readFile } from "node:fs/promises";
-import { resolve } from "node:path";
 import { DatabaseService } from "./database.service";
 import { ApprovalEntity, CategoryEntity, CustomerEntity, OrderEntity, ProductEntity, UserEntity } from "./entities";
 import type { AdminApproval, AdminCustomer, AdminOrder, Category, Product, StaffRole } from "../types/domain.types";
 import { branches } from "../types/domain.types";
 import { hashPassword } from "../auth/password";
 import { phoneKey } from "../auth/auth.service";
+import { runtimeAssetPath } from "../runtime-assets";
 
 @Injectable()
 export class SeedService implements OnApplicationBootstrap {
@@ -15,7 +15,7 @@ export class SeedService implements OnApplicationBootstrap {
     if (process.env.SEED_MOCK_DATA !== "true") return;
     if (process.env.NODE_ENV === "production") throw new Error("Mock seed is disabled in production.");
     if (!process.env.SEED_PASSWORD || process.env.SEED_PASSWORD.length < 12 || process.env.SEED_PASSWORD.startsWith("replace-")) throw new Error("SEED_PASSWORD requires at least 12 non-placeholder characters.");
-    const fixture = JSON.parse(await readFile(resolve("seed/mock.json"), "utf8")) as { products: Product[]; categories: Category[]; customers: AdminCustomer[]; orders: AdminOrder[]; approvals: AdminApproval[] };
+    const fixture = JSON.parse(await readFile(runtimeAssetPath("seed/mock.json"), "utf8")) as { products: Product[]; categories: Category[]; customers: AdminCustomer[]; orders: AdminOrder[]; approvals: AdminApproval[] };
     const passwordHash = await hashPassword(process.env.SEED_PASSWORD);
     await this.db.transaction(async (manager) => {
       for (const data of fixture.products) await manager.createQueryBuilder().insert().into(ProductEntity).values({ id: data.id, slug: data.slug, data, published: true }).orIgnore().execute();
