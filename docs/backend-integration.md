@@ -5,7 +5,8 @@ synchronize, Supabase PostgreSQL, JWT; seed mock cu va luu anh tren backend.
 Giu giao dien frontend. Tai lieu nay thay hien trang preview trong api-handoff.md.
 Cap nhat cau truc 05/10/2026: src/, shared/, media/, scripts/, seed/, certs/,
 test/ va package.json nam tai goc repo BE, khong con folder backend/.
-Duong dan frontend/ trong tai lieu thuoc repo baotin-b2b-fe rieng.
+Next.js cung nam ngay tai goc repo baotin-b2b-fe rieng (app/, components/,
+lib/, scripts/, shared/, package.json), khong con frontend/ trung gian.
 
 ## Ket Noi Va Chay
 
@@ -23,7 +24,7 @@ host khi da dung Session pooler. .env.local va PostgreSQL
 Doc: https://supabase.com/docs/guides/database/connecting-to-postgres
 
 Chay API bang npm ci, npm run dev tai goc repo BE theo ../README.md.
-Trong repo FE, frontend/.env.local theo .env.example:
+Tai goc repo FE, .env.local theo .env.example:
 NEXT_PUBLIC_API_MODE=true, BACKEND_URL=http://127.0.0.1:4000.
 Root FE `npm run dev -- --port 3010`; API localhost:4000/api/health.
 Next proxy /api/backend/* -> /api/* va images/media. Khong public DB/JWT env.
@@ -36,9 +37,9 @@ mock khi API loi; doi NEXT_PUBLIC_* can restart/rebuild frontend.
 - src/database: DataSource, entities va SeedService.
 - src/auth/catalog/orders/admin/account/media: modules nghiep vu.
 - shared/: types, pricing va rules Sales/approval/warehouse/accounting.
-- frontend/lib/api-client.ts: fetch same-origin, cookie, errors.
-- frontend/lib/server-api.ts: product SSR, hidden SKU 404.
-- frontend/components/admin/api-admin-provider.tsx: state va commands API.
+- FE lib/api-client.ts: fetch same-origin, cookie, errors.
+- FE lib/server-api.ts: product SSR, hidden SKU 404.
+- FE components/admin/api-admin-provider.tsx: state va commands API.
 
 Schema rieng baotin_app, cam public/auth/storage. Tao schema neu chua co,
 goi synchronize() khi DB_SYNCHRONIZE=true, khong dropSchema/migration.
@@ -51,8 +52,8 @@ payload JSONB giu contract mock. Chua normalized ledger/FK day du.
 Commands validate references va transaction tren server.
 
 63 SKU, 8 categories, 7 B2B customers, 18 orders, 3 approvals export tu
-frontend/lib/catalog.ts va admin-preview.ts bang
-`FRONTEND_DIR=../baotin-b2b-fe/frontend npm run fixtures` tai goc BE.
+lib/catalog.ts va lib/admin-preview.ts o goc repo FE bang
+`FRONTEND_DIR=../baotin-b2b-fe npm run fixtures` tai goc BE.
 INSERT ON CONFLICT DO NOTHING, khong overwrite khi restart,
 khong lay localStorage lam seed; seed bi cam o production.
 Seed orders bo sung **pickup details minh hoa** tu contact fixture va note

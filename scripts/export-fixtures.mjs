@@ -5,7 +5,7 @@ import { createRequire } from "node:module";
 import { spawn } from "node:child_process";
 
 async function main() {
-  const frontendDir = resolve(process.env.FRONTEND_DIR || "../baotin-b2b-fe/frontend");
+  const frontendDir = resolve(process.env.FRONTEND_DIR || "../baotin-b2b-fe");
   const tsconfig = join(frontendDir, "tsconfig.json");
   try { await access(tsconfig); }
   catch { throw new Error("Set FRONTEND_DIR to the separate frontend directory with tsconfig.json and lib/. Build/start use the bundled seed and do not require frontend source."); }

@@ -63,11 +63,11 @@ Seed da kem san, build/start khong can frontend. Tool export mock doc source
 tu repo FE rieng, khong dong goi FE vao repo BE:
 
 ```sh
-FRONTEND_DIR=../baotin-b2b-fe/frontend npm run fixtures
+FRONTEND_DIR=../baotin-b2b-fe npm run fixtures
 ```
 
 FRONTEND_DIR tro toi folder Next.js co tsconfig.json va lib/; mac dinh nhu
-vi du tren. Tai lieu ghi frontend/ la duong dan trong repo FE, khong o BE.
+vi du tren. Next.js nam ngay tai goc repo FE, khong con frontend/ trung gian.
 
 ## PostgreSQL Local
 
