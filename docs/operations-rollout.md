@@ -7,6 +7,7 @@ No runtime source is imported across repositories.
 
 ## Status
 
+
 | Priority | Implemented | Still requires external verification |
 | --- | --- | --- |
 | 1. Frontend security | Next 16.3.8, React 19.3.0, async route params, flat ESLint, patched PostCSS, server-rendered catalog, next/image | Staging deployment and supported Node LTS |
