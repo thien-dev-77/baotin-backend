@@ -1,5 +1,9 @@
 # Operations Rollout - 05 October 2026
 
+Update 07 October: [Experience Rollout](experience-rollout.md) supersedes the
+notification/CMS/review/customer-price/PDF/report backlog. Optional Kiot polling
+now saves read-only comparisons, not automatic financial updates.
+
 Product management update (07 October): create/edit API, multiple-image upload,
 gallery ordering/removal and publication checks are implemented.
 See [Product Management](product-management.md) for the current contract.
@@ -206,8 +210,7 @@ as a shortcut to retry. Already sent exports return their known external ID.
   screenshots stored in /private/tmp/baotin-operations-ui, not committed.
 
 No SMTP delivery or Kiot live authentication/order creation has been verified.
-Remaining outside these priorities: banking/refunds, MFA, customer self-service
-exception requests, notifications, CMS/review persistence, detailed aging and
-opening-invoice import, automatic Kiot stock/debt/status sync, pagination,
+Remaining outside local verification: banking/refunds, MFA,
+opening-invoice import, automatic Kiot stock/debt/status sync, global pagination,
 observability/backups and production acceptance. Do not call the system
 production-ready solely because these local tests pass.

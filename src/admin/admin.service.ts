@@ -18,6 +18,7 @@ import { businessDate, shippingCost } from "../orders/orders.service";
 import { AdminCommandDto, ApprovalDto, DecisionDto, DueDto, NoteDto, PickDto, PublishDto, ReasonDto, ReceiptDto, ReconcileDto, SalesDto, SalesQuoteDto, ShortageDto, StatusDto } from "./admin.dto";
 import { PricePolicyService } from "../catalog/price-policy.service";
 import { LedgerService } from "../ledger/ledger.service";
+import { NotificationsService } from "../notifications/notifications.service";
 
 const permission: Record<AdminCommandDto["action"], StaffRole[]> = {
   "save-order": ["sales"], "advance-order": ["sales", "warehouse"], "cancel-order": ["sales"],
@@ -42,7 +43,7 @@ export function effectiveOrder(row: OrderEntity, approvals: ApiAdminState["appro
 
 @Injectable()
 export class AdminService {
-  constructor(private readonly db: DatabaseService, private readonly pricing: PricePolicyService, private readonly ledger: LedgerService) {}
+  constructor(private readonly db: DatabaseService, private readonly pricing: PricePolicyService, private readonly ledger: LedgerService, private readonly notifications: NotificationsService) {}
   assertStaff(user: UserEntity) { if (user.role === "b2b") throw new ForbiddenException("Chỉ dành cho nhân viên."); }
   async state(user: UserEntity, manager = this.db.source.manager, redact = true): Promise<ApiAdminState> {
     this.assertStaff(user);
@@ -54,7 +55,7 @@ export class AdminService {
     for (const branch of user.branches) stockByBranch[branch] = Object.fromEntries((await this.ledger.stock(products, branch, manager)).map(product => [product.id, product.stock]));
     const result: ApiAdminState = {
       products, stockByBranch, categories: (await manager.getRepository(CategoryEntity).find()).map(row => row.data),
-      customers: await this.ledger.customers((await manager.getRepository(CustomerEntity).find()).filter(row => user.branches.includes(row.branch as never)).map(row => row.data), manager),
+      customers: await this.ledger.customers((await manager.getRepository(CustomerEntity).find()).filter(row => user.branches.includes(row.branch as never)).map(row => ({ ...row.data, revision: row.revision })), manager),
       orders, approvals, warehouse: Object.fromEntries(rows.map((row) => [row.id, row.warehouse])),
       receipts: (await manager.getRepository(ReceiptEntity).find()).filter((row) => user.branches.includes(row.branch as never)).map((row) => row.data),
       paymentDueDates: Object.fromEntries(rows.filter((row) => row.dueDate).map((row) => [row.id, row.dueDate!])), today: businessDate()
@@ -62,7 +63,7 @@ export class AdminService {
     if (redact && user.role === "warehouse") {
       result.orders = result.orders.filter(isWarehouseOrder).map((order) => ({ ...order, total: 0, items: order.items.map((item) => ({ ...item, unitPrice: 0 })) }));
       result.products = result.products.map((product) => ({ ...product, price: 0, oldPrice: undefined, customerPrice: undefined }));
-      result.customers = result.customers.map((customer) => ({ ...customer, limit: 0, debt: 0, overdue: 0, creditReserved: 0 }));
+      result.customers = result.customers.map((customer) => ({ id: customer.id, name: customer.name, contact: customer.contact, phone: customer.phone, group: customer.group, branch: customer.branch, status: customer.status, limit: 0, debt: 0, overdue: 0, creditReserved: 0 }));
       result.approvals = []; result.receipts = []; result.paymentDueDates = {};
       result.warehouse = Object.fromEntries(Object.entries(result.warehouse).filter(([id]) => result.orders.some((order) => order.id === id)));
     }
@@ -174,9 +175,11 @@ export class AdminService {
           await manager.getRepository(ApprovalEntity).save(approval); history(row, approval.data.status, `${resourceId}: ${decision.reason.trim()}`); await orders.save(row); break;
         }
         case "customer-status": {
-          const { status } = input(StatusDto, command.payload);
+          const { status, revision } = input(StatusDto, command.payload);
           const row = await manager.getRepository(CustomerEntity).findOneBy({ id: resourceId, branch: command.branch });
-          if (!row) throw new NotFoundException(); row.data.status = status; await manager.getRepository(CustomerEntity).save(row); break;
+          if (!row) throw new NotFoundException();
+          if (revision !== undefined && row.revision !== revision) throw new ConflictException("Hồ sơ khách đã thay đổi. Làm mới và thử lại.");
+          row.data.status = status; await manager.getRepository(CustomerEntity).save(row); break;
         }
         case "publish-product": {
           const { published } = input(PublishDto, command.payload);
@@ -236,6 +239,25 @@ export class AdminService {
         }
       }
       await manager.getRepository(AuditEntity).save({ actorId: user.id, action: command.action, resourceId, detail: { branch: command.branch, ...command.payload } });
+      if (["save-order", "advance-order", "cancel-order", "report-shortage", "due-date"].includes(command.action)) {
+        const row = await orders.findOneByOrFail({ id: resourceId });
+        await this.notifications.order(manager, row.branch, row.id, row.customerId, command.action === "report-shortage" ? "Kho báo thiếu hàng" : command.action === "due-date" ? `Hạn thanh toán: ${row.dueDate}` : row.data.status, row.revision, command.action === "due-date" ? 1 : 0);
+      }
+      if (["create-approval", "decide-approval"].includes(command.action)) {
+        const row = await manager.getRepository(ApprovalEntity).findOneByOrFail({ id: resourceId });
+        const event = { key: `approval:${row.id}:${row.data.status}`, type: "approval", branch: row.branch, title: `${row.data.type} · ${row.data.orderId}`, message: `${row.data.status}${row.data.decisionReason ? `: ${row.data.decisionReason}` : ""}` };
+        await this.notifications.emit(manager, { ...event, href: "/admin/approvals", roles: ["admin", "boss", "sales"] });
+        await this.notifications.emit(manager, { ...event, customerId: row.data.customerId, href: `/account/orders/${row.data.orderId}` });
+      }
+      if (command.action === "customer-status") {
+        const row = await manager.getRepository(CustomerEntity).findOneByOrFail({ id: resourceId });
+        await this.notifications.emit(manager, { key: `customer:${row.id}:${randomUUID()}`, type: "account", branch: row.branch, customerId: row.id, title: "Tài khoản B2B", message: row.data.status, href: "/account" });
+      }
+      if (["reconcile-receipt", "void-receipt"].includes(command.action)) {
+        const receipt = await manager.getRepository(ReceiptEntity).findOneByOrFail({ id: resourceId });
+        const row = await orders.findOneByOrFail({ id: receipt.data.orderId });
+        if (row.customerId) await this.notifications.emit(manager, { key: `receipt:${resourceId}:${receipt.data.status}`, type: "payment", branch: row.branch, customerId: row.customerId, preference: 1, title: `Thanh toán đơn ${row.id}`, message: `${receipt.data.status} · ${receipt.data.amount.toLocaleString("vi-VN")} đ`, href: "/account/credit" });
+      }
       return { id: resourceId, state: await this.state(user, manager) };
     });
   }

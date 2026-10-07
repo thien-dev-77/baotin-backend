@@ -3,6 +3,7 @@ import type { AdminApproval, AdminCustomer, AdminOrder, Branch, Category, Order,
 import type { WarehouseRecord } from "../admin/rules/warehouse.rules";
 import type { Receipt } from "../admin/rules/accounting.rules";
 import { CreditEntity, IntegrationLinkEntity, IntegrationOutboxEntity, IntegrationRunEntity, InventoryEntity, LedgerEntity, PasswordResetEntity, PricePolicyEntity } from "./operations.entities";
+import { ContentEntity, NotificationEntity, ReviewEntity } from "./experience.entities";
 
 @Entity("products")
 export class ProductEntity {
@@ -15,11 +16,11 @@ export class ProductEntity {
 @Entity("categories")
 export class CategoryEntity { @PrimaryColumn() slug!: string; @Column("jsonb") data!: Category; }
 @Entity("customers")
-export class CustomerEntity { @PrimaryColumn() id!: string; @Column() branch!: string; @Column("jsonb") data!: AdminCustomer; }
+export class CustomerEntity { @PrimaryColumn() id!: string; @Column() branch!: string; @Column("jsonb") data!: AdminCustomer; @VersionColumn({ default: 1 }) revision!: number; }
 @Entity("users")
 export class UserEntity {
   @PrimaryGeneratedColumn("uuid") id!: string;
-  @Column({ unique: true }) email!: string;
+  @Column({ type: "varchar", unique: true, nullable: true }) email!: string | null;
   @Column({ type: "varchar", unique: true, nullable: true }) phone!: string | null;
   @Column() name!: string;
   @Column({ default: false }) disabled!: boolean;
@@ -69,6 +70,11 @@ export class AuditEntity {
 export class LeadEntity {
   @PrimaryGeneratedColumn("uuid") id!: string;
   @Column("jsonb") data!: { name: string; phone: string; email: string; message: string };
+  @Column({ default: "Quy Nhơn" }) branch!: string;
+  @Column({ default: "new" }) status!: "new" | "contacted" | "qualified" | "closed";
+  @Column({ type: "varchar", nullable: true }) assignedTo!: string | null;
+  @Column({ default: "" }) note!: string;
+  @VersionColumn() revision!: number;
   @CreateDateColumn() createdAt!: Date;
 }
 @Entity("newsletter_subscriptions")
@@ -76,4 +82,4 @@ export class NewsletterEntity {
   @PrimaryColumn() email!: string;
   @CreateDateColumn() createdAt!: Date;
 }
-export const entities = [ProductEntity, CategoryEntity, CustomerEntity, UserEntity, SessionEntity, OrderEntity, ApprovalEntity, ReceiptEntity, AuditEntity, LeadEntity, NewsletterEntity, PricePolicyEntity, InventoryEntity, CreditEntity, LedgerEntity, PasswordResetEntity, IntegrationLinkEntity, IntegrationRunEntity, IntegrationOutboxEntity];
+export const entities = [ProductEntity, CategoryEntity, CustomerEntity, UserEntity, SessionEntity, OrderEntity, ApprovalEntity, ReceiptEntity, AuditEntity, LeadEntity, NewsletterEntity, PricePolicyEntity, InventoryEntity, CreditEntity, LedgerEntity, PasswordResetEntity, IntegrationLinkEntity, IntegrationRunEntity, IntegrationOutboxEntity, NotificationEntity, ContentEntity, ReviewEntity];

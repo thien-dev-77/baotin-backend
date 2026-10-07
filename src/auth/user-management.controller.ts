@@ -23,11 +23,12 @@ import {
   IsUUID,
   Length,
   Min,
+  ValidateIf,
 } from "class-validator";
 import { randomUUID } from "node:crypto";
 import { AuthService, type AuthRequest } from "./auth.service";
 import { DatabaseService } from "../database/database.service";
-import { AuditEntity, SessionEntity, UserEntity } from "../database/entities";
+import { AuditEntity, CustomerEntity, SessionEntity, UserEntity } from "../database/entities";
 import { PasswordResetEntity } from "../database/operations.entities";
 import { branches, type Branch, type StaffRole } from "../types/domain.types";
 import { hashPassword } from "./password";
@@ -35,7 +36,7 @@ import { hashPassword } from "./password";
 class UserDto {
   @IsOptional() @IsUUID() id?: string;
   @IsOptional() @IsInt() @Min(1) revision?: number;
-  @IsEmail() @Length(3, 160) email!: string;
+  @ValidateIf(value => value.email !== "") @IsEmail() @Length(3, 160) email!: string;
   @IsString() @Length(2, 100) name!: string;
   @IsIn(["admin", "boss", "sales", "warehouse", "accountant", "b2b"]) role!:
     StaffRole | "b2b";
@@ -75,7 +76,7 @@ export class UserManagementController {
         .map((user) => ({
           id: user.id,
           name: user.name,
-          email: user.email,
+          email: user.email || "",
           role: user.role,
           branches: user.branches,
           disabled: user.disabled,
@@ -117,7 +118,8 @@ export class UserManagementController {
           "Không chuyển đổi tài khoản B2B hoặc chi nhánh khách ở màn hình nhân viên.",
         );
       const email = input.email.trim().toLowerCase();
-      const duplicate = await repository.findOneBy({ email });
+      if (!email && input.role !== "b2b") throw new BadRequestException("Nhân viên cần có email đăng nhập.");
+      const duplicate = email ? await repository.findOneBy({ email }) : null;
       if (duplicate && duplicate.id !== input.id)
         throw new ConflictException("Email đã được sử dụng.");
       if (
@@ -137,7 +139,7 @@ export class UserManagementController {
           profile: {},
         });
       Object.assign(row, {
-        email,
+        email: email || null,
         name: input.name.trim(),
         role: input.role,
         branches: input.branches,
@@ -145,6 +147,11 @@ export class UserManagementController {
       });
       if (input.password) row.passwordHash = await hashPassword(input.password);
       await repository.save(row);
+      if (row.customerId) {
+        const customer = await manager.getRepository(CustomerEntity).findOneByOrFail({ id: row.customerId });
+        customer.data = { ...customer.data, contact: row.name, email };
+        await manager.getRepository(CustomerEntity).save(customer);
+      }
       if (previous) {
         await manager.getRepository(SessionEntity).delete({ userId: row.id });
         await manager

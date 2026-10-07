@@ -1,5 +1,5 @@
 import { BadRequestException, Body, Controller, Get, Patch, Req } from "@nestjs/common";
-import { IsArray, IsBoolean, IsEmail, IsOptional, IsString, Length, MaxLength, ValidateNested, ArrayMaxSize, ArrayMinSize } from "class-validator";
+import { IsArray, IsBoolean, IsEmail, IsOptional, IsString, Length, MaxLength, ValidateIf, ValidateNested, ArrayMaxSize, ArrayMinSize } from "class-validator";
 import { Type } from "class-transformer";
 import { AuthService, phoneKey, type AuthRequest } from "../auth/auth.service";
 import { DatabaseService } from "../database/database.service";
@@ -10,7 +10,7 @@ class ProfileDto {
   @IsString() @Length(2, 100) name!: string;
   @IsString() @Length(2, 150) company!: string;
   @IsString() @Length(9, 20) phone!: string;
-  @IsEmail() email!: string;
+  @ValidateIf(value => value.email !== "") @IsEmail() email!: string;
   @IsString() @MaxLength(30) tax!: string;
   @IsString() @MaxLength(300) address!: string;
 }
@@ -36,17 +36,18 @@ export class AccountController {
   @Patch("profile") async profile(@Body() input: ProfileDto, @Req() request: AuthRequest) {
     const user = (await this.auth.authenticate(request))!;
     if (!user.customerId) throw new BadRequestException("Tài khoản không phải khách B2B.");
-    if (input.email.trim().toLowerCase() !== user.email) throw new BadRequestException("Thay đổi email đăng nhập cần xác minh riêng.");
+    if (input.email.trim().toLowerCase() !== (user.email || "")) throw new BadRequestException("Thay đổi email đăng nhập cần xác minh riêng.");
     const phone = phoneKey(input.phone);
     if (!/^\+?\d{9,12}$/.test(phone)) throw new BadRequestException("Số điện thoại không hợp lệ.");
     await this.db.transaction(async (manager) => {
+      if ((await manager.getRepository(CustomerEntity).find()).some(row => row.id !== user.customerId && phoneKey(row.data.phone) === phone)) throw new BadRequestException("Số điện thoại đã có hồ sơ khách hàng.");
       const duplicate = await manager.getRepository(UserEntity).findOneBy({ phone });
       if (duplicate && duplicate.id !== user.id) throw new BadRequestException("Số điện thoại đã đăng ký.");
       const current = await manager.getRepository(UserEntity).findOneByOrFail({ id: user.id });
       current.name = input.name.trim(); current.phone = phone; current.profile = { ...current.profile, company: input.company.trim(), tax: input.tax.trim(), address: input.address.trim() };
       await manager.getRepository(UserEntity).save(current);
       const customer = await manager.getRepository(CustomerEntity).findOneByOrFail({ id: user.customerId! });
-      customer.data = { ...customer.data, name: current.profile.company!, contact: current.name, phone };
+      customer.data = { ...customer.data, name: current.profile.company!, contact: current.name, phone, email: current.email || "", tax: current.profile.tax, address: current.profile.address };
       await manager.getRepository(CustomerEntity).save(customer);
     });
     return { user: await this.auth.userView(await this.db.source.getRepository(UserEntity).findOneByOrFail({ id: user.id })) };

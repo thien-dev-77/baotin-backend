@@ -41,7 +41,7 @@ export class ApprovalDto {
 }
 export class ReasonDto { @IsString() @Length(1, 500) reason!: string; }
 export class DecisionDto extends ReasonDto { @IsBoolean() approved!: boolean; }
-export class StatusDto { @IsIn(["Chờ duyệt", "Đang hoạt động", "Tạm ngưng"]) status!: "Chờ duyệt" | "Đang hoạt động" | "Tạm ngưng"; }
+export class StatusDto { @IsIn(["Chờ duyệt", "Đang hoạt động", "Tạm ngưng"]) status!: "Chờ duyệt" | "Đang hoạt động" | "Tạm ngưng"; @IsOptional() @IsInt() @Min(1) revision?: number; }
 export class PublishDto { @IsBoolean() published!: boolean; }
 export class PickDto { @IsString() @Length(1, 100) productId!: string; @IsBoolean() picked!: boolean; }
 export class ShortageDto { @IsString() @Length(1, 100) productId!: string; @IsInt() @Min(1) @Max(999) quantity!: number; @IsString() @Length(1, 500) note!: string; }

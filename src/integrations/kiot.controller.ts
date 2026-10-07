@@ -4,6 +4,7 @@ import { Throttle } from "@nestjs/throttler";
 import { AuthService, type AuthRequest } from "../auth/auth.service";
 import { branches } from "../types/domain.types";
 import { KiotService } from "./kiot.service";
+import { KiotReconciliationService } from "./kiot-reconciliation.service";
 
 class BranchDto {
   @IsIn(branches) branch!: (typeof branches)[number];
@@ -27,7 +28,11 @@ export class KiotController {
   constructor(
     private readonly auth: AuthService,
     private readonly kiot: KiotService,
+    private readonly reconciliation: KiotReconciliationService,
   ) {}
+  @Get("reconciliation") async snapshot(@Req() request: AuthRequest, @Query("branch") branch: string) { return this.reconciliation.latest((await this.auth.authenticate(request))!, branch); }
+  @Post("pull") @Throttle({ default: { limit: 5, ttl: 60000 } })
+  async pull(@Body() input: BranchDto, @Req() request: AuthRequest) { return this.reconciliation.pull((await this.auth.authenticate(request))!, input.branch); }
   @Get() async status(
     @Query("branch") branch: string,
     @Req() request: AuthRequest,

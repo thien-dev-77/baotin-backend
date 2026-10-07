@@ -8,6 +8,7 @@ import { hashPassword } from "../auth/password";
 import { phoneKey } from "../auth/auth.service";
 import { runtimeAssetPath } from "../runtime-assets";
 import { PricePolicyEntity } from "./operations.entities";
+import { seedContent } from "../content/content-seed";
 
 @Injectable()
 export class SeedService implements OnApplicationBootstrap {
@@ -19,6 +20,7 @@ export class SeedService implements OnApplicationBootstrap {
     const fixture = JSON.parse(await readFile(runtimeAssetPath("seed/mock.json"), "utf8")) as { products: Product[]; categories: Category[]; customers: AdminCustomer[]; orders: AdminOrder[]; approvals: AdminApproval[] };
     const passwordHash = await hashPassword(process.env.SEED_PASSWORD);
     await this.db.transaction(async (manager) => {
+      await seedContent(manager);
       for (const data of fixture.products) await manager.createQueryBuilder().insert().into(ProductEntity).values({ id: data.id, slug: data.slug, data, published: true }).orIgnore().execute();
       for (const data of fixture.categories) await manager.createQueryBuilder().insert().into(CategoryEntity).values({ slug: data.slug, data }).orIgnore().execute();
       for (const data of fixture.customers) await manager.createQueryBuilder().insert().into(CustomerEntity).values({ id: data.id, branch: data.branch, data }).orIgnore().execute();

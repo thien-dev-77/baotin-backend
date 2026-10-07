@@ -1,5 +1,8 @@
 # Backend Integration
 
+Cap nhat 07/10/2026: doc [Experience Rollout](experience-rollout.md) cho thong bao,
+B2B xin gia/thuong mua, PDF, tu van, CMS/reviews, KPI/tuoi no va Kiot read-only polling.
+
 Cap nhat 05/10/2026: uu tien 1-6 da co code UI/API. Doc
 [Operations Rollout](operations-rollout.md) cho rules, env, tests va checklist deploy.
 Schema/ledger moi chi duoc dong bo o local; chua ap dung vao Supabase trong dot nay.
@@ -70,7 +73,7 @@ khong lay localStorage lam seed; seed bi cam o production.
 Seed orders bo sung **pickup details minh hoa** tu contact fixture va note
 seed; phone khach le demo, khong che dia chi giao that. Snapshot stock/debt la
 so du dau ky; giao dich moi dung ledger va reservations. Stock fallback chi Quy Nhon.
-Guide/slide/solutions/reviews van o frontend, chua co CMS API.
+Guide/slide/solutions/reviews API mode da persisted trong backend; preview giu mock FE.
 
 ## Auth Va Quyen
 
@@ -185,12 +188,12 @@ Preview QA cu can API_MODE=false, khong chung assertion cho API mode.
 
 Chua production-ready: KiotViet connector da co preview/mapping/gia retail/export
 va outbox doi chieu, nhung chua co credentials de kiem tra vendor that. Chua tu dong
-sync stock/debt/status, return/refund/bank, notifications, CMS/reviews, MFA,
+sync stock/debt/status theo nguon van hanh, return/refund/bank, MFA,
 fine-grained read permissions, pagination/OpenAPI, deployment/backup/observability.
 Gia branch/group/customer/effectivity, ledger/reservations, staff management,
 change-password/recovery va sua don website da implement; xem operations-rollout.md.
-Contact/newsletter da luu DB, chua gui email/thong bao va chua co man hinh
-xu ly leads. Reviews submit tren product van la preview client, khong persisted.
+Contact da co man hinh xu ly leads va thong bao noi bo. Reviews API mode luu DB
+va cho admin kiem duyet. Newsletter chua gui email that.
 Frontend da nang Next.js 16.3.8, React 19.3.0; SSR/async params/images va UI
 regression da test. Runtime audit FE/BE hien 0 vulnerabilities. FE full audit con
 7 high trong dev glob tools/braces chua co ban fix; khong audit fix --force downgrade.

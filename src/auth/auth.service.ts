@@ -8,6 +8,7 @@ import { hashPassword, verifyPassword } from "./password";
 import type { LoginDto, RegisterDto } from "./auth.dto";
 import type { SessionUser } from "../types/domain.types";
 import { LedgerService } from "../ledger/ledger.service";
+import { NotificationsService } from "../notifications/notifications.service";
 
 export type AuthRequest = Request & { user?: UserEntity; sessionId?: string; guestId?: string };
 export const authCookie = "baotin_session";
@@ -17,11 +18,11 @@ export const phoneKey = (value: string) => value.replace(/[\s()-]/g, "");
 
 @Injectable()
 export class AuthService {
-  constructor(private readonly db: DatabaseService, private readonly jwt: JwtService, private readonly ledger: LedgerService) {}
+  constructor(private readonly db: DatabaseService, private readonly jwt: JwtService, private readonly ledger: LedgerService, private readonly notifications: NotificationsService) {}
   async userView(user: UserEntity): Promise<SessionUser> {
     const customer = user.customerId ? await this.db.source.getRepository(CustomerEntity).findOneBy({ id: user.customerId }) : null;
     const balance = customer ? (await this.ledger.customers([customer.data]))[0] : null;
-    return { id: user.id, name: user.name, email: user.email, role: user.role, branches: user.branches, customer: customer && balance ? { id: customer.id, name: user.name, email: user.email, phone: user.phone || "", company: user.profile.company || customer.data.name, tax: user.profile.tax, address: user.profile.address, role: "b2b", status: customer.data.status === "Đang hoạt động" ? "active" : "pending", creditLimit: customer.data.limit, debt: balance.debt, creditReserved: balance.creditReserved } : null };
+    return { id: user.id, name: user.name, email: user.email || "", role: user.role, branches: user.branches, customer: customer && balance ? { id: customer.id, name: user.name, email: user.email || "", phone: user.phone || "", company: user.profile.company || customer.data.name, tax: user.profile.tax, address: user.profile.address, role: "b2b", status: customer.data.status === "Đang hoạt động" ? "active" : "pending", creditLimit: customer.data.limit, debt: balance.debt, creditReserved: balance.creditReserved } : null };
   }
   async authenticate(request: AuthRequest, required = true): Promise<UserEntity | undefined> {
     const token = request.cookies?.[authCookie];
@@ -67,8 +68,10 @@ export class AuthService {
     const passwordHash = await hashPassword(input.password);
     const user = await this.db.transaction(async (manager) => {
       if (await manager.getRepository(UserEntity).findOne({ where: [{ email }, { phone }] })) throw new ConflictException("Email hoặc số điện thoại đã đăng ký.");
+      if ((await manager.getRepository(CustomerEntity).find()).some(row => phoneKey(row.data.phone) === phone)) throw new ConflictException("Số điện thoại đã có hồ sơ khách hàng. Vui lòng liên hệ Bảo Tín để kích hoạt tài khoản.");
       const id = `KH-${randomUUID()}`;
       await manager.getRepository(CustomerEntity).save({ id, branch: "Quy Nhơn", data: { id, name: input.company.trim(), contact: input.name.trim(), phone, group: "Chờ phân nhóm", branch: "Quy Nhơn", status: "Chờ duyệt", limit: 0, debt: 0, overdue: 0 } });
+      await this.notifications.emit(manager, { key: `registration:${id}`, type: "account", branch: "Quy Nhơn", title: "Khách B2B chờ duyệt", message: input.company.trim(), href: "/admin/customers?status=Chờ%20duyệt" });
       return manager.getRepository(UserEntity).save(manager.getRepository(UserEntity).create({ email, phone, name: input.name.trim(), passwordHash, role: "b2b", customerId: id, branches: ["Quy Nhơn"], profile: { company: input.company.trim() } }));
     });
     return this.establish(user, response);

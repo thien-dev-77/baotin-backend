@@ -9,6 +9,7 @@ import type { Quote } from "../types/api.types";
 import { priceFor } from "../catalog/pricing";
 import { PricePolicyService } from "../catalog/price-policy.service";
 import { LedgerService } from "../ledger/ledger.service";
+import { NotificationsService } from "../notifications/notifications.service";
 
 export const shippingCost = (delivery: string) => delivery === "Nhận tại cửa hàng" ? 0 : delivery === "Chành xe" ? 50000 : 30000;
 
@@ -26,7 +27,7 @@ export function customerOrder(row: OrderEntity): Order {
 
 @Injectable()
 export class OrdersService {
-  constructor(private readonly db: DatabaseService, private readonly pricing: PricePolicyService, private readonly ledger: LedgerService) {}
+  constructor(private readonly db: DatabaseService, private readonly pricing: PricePolicyService, private readonly ledger: LedgerService, private readonly notifications: NotificationsService) {}
   async quote(input: QuoteDto, user?: UserEntity, manager = this.db.source.manager): Promise<Quote> {
     if (new Set(input.items.map((item) => item.productId)).size !== input.items.length) throw new BadRequestException("Mỗi SKU chỉ có một dòng.");
     const customer = user?.customerId ? await manager.getRepository(CustomerEntity).findOneBy({ id: user.customerId }) : null;
@@ -37,7 +38,7 @@ export class OrdersService {
     const items = input.items.map((item) => {
       const product = products.find(row => row.id === item.productId);
       if (!product || item.quantity > product.stock) throw new ConflictException("Sản phẩm không còn bán hoặc tồn kho không đủ.");
-      return { productId: product.id, quantity: item.quantity, unitPrice: priceFor(product, customer ? { id: customer.id, name: customer.data.contact, email: user!.email, phone: user!.phone || "", company: customer.data.name, role: "b2b" } : null) };
+      return { productId: product.id, quantity: item.quantity, unitPrice: priceFor(product, customer ? { id: customer.id, name: customer.data.contact, email: user!.email || "", phone: user!.phone || "", company: customer.data.name, role: "b2b" } : null) };
     });
     if (input.coupon && input.coupon !== "BAOTIN10") throw new BadRequestException("Mã khuyến mãi không hợp lệ.");
     const subtotal = items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0);
@@ -69,6 +70,7 @@ export class OrdersService {
       const checkout: Order = { ...quote, id, customerId: customer?.id || null, date: new Date().toISOString(), status: "Chờ xác nhận", b2b: !!customer, customer: input.customer, delivery: input.delivery, payment: input.payment, note: input.note, coupon: input.coupon };
       const data: AdminOrder = { id, customerId: checkout.customerId, customerName: customer?.data.name || input.customer.name, branch, date: businessDate(), channel: customer ? "B2B" : "B2C", source: customer ? "Website B2B" : "Website B2C", status: "Chờ xác nhận", items: quote.items, total: quote.total, credit: input.payment === "Thanh toán công nợ B2B", details: { recipient: input.customer.name, phone: input.customer.phone, address: [input.customer.address, input.customer.ward, input.customer.district, input.customer.city].filter(Boolean).join(", "), delivery: input.delivery === "Giao hàng nội thành" ? "Giao nội thành" : input.delivery as "Giao nội thành", payment: input.payment === "Thanh toán công nợ B2B" ? "Công nợ B2B" : input.payment === "Chuyển khoản ngân hàng" ? "Chuyển khoản" : "Tiền mặt", note: input.note } };
       const row = await repository.save(repository.create({ id, branch, customerId: checkout.customerId, guestId: customer ? null : guestId, idempotencyKey: key, requestHash, data, checkout, warehouse: { checks: {}, history: [{ at: new Date().toISOString(), label: "Website tạo đơn" }] }, dueDate: null }));
+      await this.notifications.order(manager, branch, id, row.customerId, data.status, row.revision);
       return customerOrder(row);
     });
   }

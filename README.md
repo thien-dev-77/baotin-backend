@@ -1,5 +1,7 @@
 # Bao Tin Backend
 
+Customer profiles and phone onboarding: [Customer Management](docs/customer-management.md).
+
 NestJS 11, TypeScript, TypeORM PostgreSQL va JWT HttpOnly cookie.
 Repo backend tach rieng cho [Bao Tin frontend](https://github.com/thien-dev-77/baotin-frontend).
 Frontend khong duoc dong goi trong repo nay.
@@ -139,6 +141,7 @@ npm run build
 npm run typecheck
 npm test
 npm run test:operations
+npm run test:experience
 ```
 
 `npm run test:api` ghi/xoa du lieu kiem thu: chi chay voi PostgreSQL local va
@@ -151,3 +154,6 @@ server quote, orders/admin/account, uploads va backlog. Da co pricing/stock/cred
 ledger, account management/recovery va website edit. KiotViet connector/outbox
 can credentials va acceptance; SMTP can cau hinh de gui email that.
 Chua co auto Kiot stock/debt/status sync, bank/refund hay production acceptance.
+
+Doc [Experience API Rollout](docs/experience-rollout.md) cho thong bao admin/B2B,
+B2B xin gia/thuong mua, PDF, xu ly tu van, CMS/reviews, KPI/tuoi no va read-only polling.

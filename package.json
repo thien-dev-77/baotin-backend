@@ -2,6 +2,7 @@
   "name": "bao-tin-api",
   "version": "0.1.0",
   "private": true,
+  "overrides": { "shell-quote": "1.11.0" },
   "scripts": {
     "dev": "npm run build && concurrently --kill-others -n compiler,api \"tsc -p tsconfig.json --watch --preserveWatchOutput\" \"node --watch dist/main.js\"",
     "build": "tsc -p tsconfig.json && node scripts/copy-runtime-assets.mjs",
@@ -11,6 +12,8 @@
     "test": "npm run build && tsx --test test/domain.test.ts test/runtime.test.ts test/operations.test.ts",
     "test:operations": "npm run build && tsx --test test/operations-api.test.ts",
     "test:products": "npm run build && tsx --test test/products-api.test.ts",
+    "test:experience": "npm run build && tsx --test test/experience-api.test.ts",
+    "test:customers": "npm run build && tsx --test test/customers-api.test.ts",
     "test:api": "tsx --test test/api.test.ts",
     "db:local": "tsx scripts/local-postgres.ts",
     "dev:local": "ENV_FILE=.env.local npm run dev"
@@ -27,6 +30,7 @@
     "dotenv": "^17.2.3",
     "helmet": "^8.1.0",
     "nodemailer": "^10.0.14",
+    "pdfkit": "^0.20.2",
     "pg": "^8.16.3",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.2",
@@ -39,7 +43,8 @@
     "@types/multer": "^2.0.0",
     "@types/node": "^22.18.6",
     "@types/nodemailer": "^8.0.2",
-    "concurrently": "^9.2.1",
+    "@types/pdfkit": "^0.17.6",
+    "concurrently": "9.2.1",
     "embedded-postgres": "18.4.0-beta.17",
     "tsx": "^4.20.6",
     "typescript": "^5.9.3"

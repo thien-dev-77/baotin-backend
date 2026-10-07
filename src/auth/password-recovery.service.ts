@@ -72,7 +72,7 @@ export class PasswordRecoveryService {
     const user = await this.db.source
       .getRepository(UserEntity)
       .findOneBy({ email: email.trim().toLowerCase(), disabled: false });
-    if (user) {
+    if (user?.email) {
       await this.db.transaction(async (manager) => {
         await manager
           .getRepository(PasswordResetEntity)
