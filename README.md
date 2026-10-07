@@ -5,6 +5,8 @@ Repo backend tach rieng cho [Bao Tin frontend](https://github.com/thien-dev-77/b
 Frontend khong duoc dong goi trong repo nay.
 Ban cap nhat uu tien 1-6 va checklist staging:
 [Operations Rollout](docs/operations-rollout.md).
+Quan ly them/sua san pham, bo anh va che do rieng tu:
+[Product Management](docs/product-management.md).
 
 ```txt
 src/      NestJS modules, types va business rules cua BE

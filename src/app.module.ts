@@ -24,6 +24,7 @@ import { UserManagementController } from "./auth/user-management.controller";
 import { KiotClient } from "./integrations/kiot-client";
 import { KiotService } from "./integrations/kiot.service";
 import { KiotController } from "./integrations/kiot.controller";
+import { AdminProductsController } from "./catalog/admin-products.controller";
 
 @Module({
   imports: [JwtModule.registerAsync({ useFactory: () => {
@@ -31,7 +32,7 @@ import { KiotController } from "./integrations/kiot.controller";
     if (!secret || secret.length < 32 || secret.startsWith("replace-")) throw new Error("JWT_SECRET must contain at least 32 random characters.");
     return { secret };
   } }), ThrottlerModule.forRoot([{ ttl: 60000, limit: 240 }])],
-  controllers: [AuthController, CatalogController, OrdersController, AdminController, AccountController, MediaController, HealthController, ContactController, PricePolicyController, LedgerController, UserManagementController, KiotController],
+  controllers: [AuthController, CatalogController, OrdersController, AdminController, AccountController, MediaController, HealthController, ContactController, PricePolicyController, LedgerController, UserManagementController, KiotController, AdminProductsController],
   providers: [DatabaseService, SeedService, AuthService, OrdersService, AdminService, PricePolicyService, LedgerService, PasswordRecoveryService, KiotClient, KiotService, { provide: APP_GUARD, useClass: ThrottlerGuard }]
 })
 export class AppModule {}

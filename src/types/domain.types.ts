@@ -7,6 +7,7 @@ export type Product = {
   image: string; gallery: string[]; brand: string; specification: string; material: string;
   color: string; size: string; origin: string; price: number; oldPrice?: number;
   unit: string; stock: number; featured: boolean; customerPrice?: number;
+  description?: string;
 };
 export type Customer = { id: string; name: string; email: string; phone: string; company: string; tax?: string; address?: string; status?: "pending" | "active"; creditLimit?: number; debt?: number; creditReserved?: number; role: "b2b" };
 export type CartLine = { productId: string; quantity: number };

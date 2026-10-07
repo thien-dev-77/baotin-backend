@@ -1,5 +1,9 @@
 # Operations Rollout - 05 October 2026
 
+Product management update (07 October): create/edit API, multiple-image upload,
+gallery ordering/removal and publication checks are implemented.
+See [Product Management](product-management.md) for the current contract.
+
 This document is the current implementation handoff for priorities 1-6.
 Local workspace has separate `frontend/` and `backend/` directories. Each
 GitHub repository still contains its application at the repository root.

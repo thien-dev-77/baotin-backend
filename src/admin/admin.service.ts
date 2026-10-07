@@ -12,7 +12,8 @@ import { appendWarehouseEvent, hasShortage, isPicked, isWarehouseOrder, warehous
 import { collectible, reconciliationBlocker, validAccountingDate, validateReceipt } from "./rules/accounting.rules";
 import { orderBlocker } from "./rules/order.rules";
 import { DatabaseService } from "../database/database.service";
-import { ApprovalEntity, AuditEntity, CustomerEntity, OrderEntity, ProductEntity, ReceiptEntity, UserEntity } from "../database/entities";
+import { assertPublishable } from "../catalog/product.rules";
+import { ApprovalEntity, AuditEntity, CategoryEntity, CustomerEntity, OrderEntity, ProductEntity, ReceiptEntity, UserEntity } from "../database/entities";
 import { businessDate, shippingCost } from "../orders/orders.service";
 import { AdminCommandDto, ApprovalDto, DecisionDto, DueDto, NoteDto, PickDto, PublishDto, ReasonDto, ReceiptDto, ReconcileDto, SalesDto, SalesQuoteDto, ShortageDto, StatusDto } from "./admin.dto";
 import { PricePolicyService } from "../catalog/price-policy.service";
@@ -49,10 +50,10 @@ export class AdminService {
     const rows = (await manager.getRepository(OrderEntity).find({ order: { createdAt: "ASC" } })).filter((row) => user.branches.includes(row.branch as never));
     const orders = rows.map((row) => effectiveOrder(row, approvals));
     const stockByBranch: Record<string, Record<string, number>> = {};
-    const products = (await manager.getRepository(ProductEntity).find()).map(row => ({ ...row.data, published: row.published }));
+    const products = (await manager.getRepository(ProductEntity).find()).map(row => ({ ...row.data, published: row.published, revision: row.revision }));
     for (const branch of user.branches) stockByBranch[branch] = Object.fromEntries((await this.ledger.stock(products, branch, manager)).map(product => [product.id, product.stock]));
     const result: ApiAdminState = {
-      products, stockByBranch,
+      products, stockByBranch, categories: (await manager.getRepository(CategoryEntity).find()).map(row => row.data),
       customers: await this.ledger.customers((await manager.getRepository(CustomerEntity).find()).filter(row => user.branches.includes(row.branch as never)).map(row => row.data), manager),
       orders, approvals, warehouse: Object.fromEntries(rows.map((row) => [row.id, row.warehouse])),
       receipts: (await manager.getRepository(ReceiptEntity).find()).filter((row) => user.branches.includes(row.branch as never)).map((row) => row.data),
@@ -180,7 +181,9 @@ export class AdminService {
         case "publish-product": {
           const { published } = input(PublishDto, command.payload);
           const row = await manager.getRepository(ProductEntity).findOneBy({ id: resourceId });
-          if (!row) throw new NotFoundException(); row.published = published; await manager.getRepository(ProductEntity).save(row); break;
+          if (!row) throw new NotFoundException();
+          if (published) assertPublishable(row.data);
+          row.published = published; await manager.getRepository(ProductEntity).save(row); break;
         }
         case "pick-item": case "report-shortage": case "resolve-shortage": {
           const { row, order } = await orderFor(resourceId);

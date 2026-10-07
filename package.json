@@ -10,6 +10,7 @@
     "fixtures": "node scripts/export-fixtures.mjs",
     "test": "npm run build && tsx --test test/domain.test.ts test/runtime.test.ts test/operations.test.ts",
     "test:operations": "npm run build && tsx --test test/operations-api.test.ts",
+    "test:products": "npm run build && tsx --test test/products-api.test.ts",
     "test:api": "tsx --test test/api.test.ts",
     "db:local": "tsx scripts/local-postgres.ts",
     "dev:local": "ENV_FILE=.env.local npm run dev"
