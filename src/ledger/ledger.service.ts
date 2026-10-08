@@ -1,5 +1,5 @@
 import { ConflictException, Injectable } from "@nestjs/common";
-import type { EntityManager } from "typeorm";
+import { In, Raw, type EntityManager } from "typeorm";
 import { DatabaseService } from "../database/database.service";
 import {
   CustomerEntity,
@@ -23,15 +23,21 @@ export function reservedQuantity(
   productId: string,
   except?: string,
 ) {
-  return orders
-    .filter((order) => order.id !== except && reservesStock(order))
-    .reduce(
-      (sum, order) =>
-        sum +
-        (order.items.find((item) => item.productId === productId)?.quantity ||
-          0),
-      0,
-    );
+  return reservedQuantities(orders, except).get(productId) || 0;
+}
+
+export function reservedQuantities(orders: AdminOrder[], except?: string) {
+  const quantities = new Map<string, number>();
+  for (const order of orders) {
+    if (order.id === except || !reservesStock(order)) continue;
+    const seen = new Set<string>();
+    for (const line of order.items) {
+      if (seen.has(line.productId)) continue;
+      seen.add(line.productId);
+      quantities.set(line.productId, (quantities.get(line.productId) || 0) + line.quantity);
+    }
+  }
+  return quantities;
 }
 
 @Injectable()
@@ -43,17 +49,24 @@ export class LedgerService {
     manager = this.db.source.manager,
     except?: string,
   ) {
-    const balances = await manager
-      .getRepository(InventoryEntity)
-      .find({ where: { branch } });
-    const orders = (
-      await manager.getRepository(OrderEntity).find({ where: { branch } })
-    ).map((row) => row.data);
+    if (!products.length) return [];
+    const [balances, orders] = await Promise.all([
+      manager.getRepository(InventoryEntity).find({
+        select: { productId: true, onHand: true },
+        where: { branch, productId: In(products.map(product => product.id)) },
+      }),
+      manager.getRepository(OrderEntity).find({
+        select: { data: true },
+        where: { branch, data: Raw(alias => `${alias} ->> 'status' IN (:...reservedStages)`, { reservedStages }) },
+      }),
+    ]);
+    const onHandByProduct = new Map(balances.map(row => [row.productId, row.onHand]));
+    const reservedByProduct = reservedQuantities(orders.map(row => row.data), except);
     return products.map((product) => {
       const onHand =
-        balances.find((row) => row.productId === product.id)?.onHand ??
+        onHandByProduct.get(product.id) ??
         (branch === "Quy Nhơn" ? product.stock : 0);
-      const reserved = reservedQuantity(orders, product.id, except);
+      const reserved = reservedByProduct.get(product.id) || 0;
       return {
         ...product,
         onHand,

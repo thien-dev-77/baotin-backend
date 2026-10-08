@@ -19,6 +19,7 @@ import { AdminCommandDto, ApprovalDto, DecisionDto, DueDto, NoteDto, PickDto, Pu
 import { PricePolicyService } from "../catalog/price-policy.service";
 import { LedgerService } from "../ledger/ledger.service";
 import { NotificationsService } from "../notifications/notifications.service";
+import { orderedCategories } from "../catalog/category.rules";
 
 const permission: Record<AdminCommandDto["action"], StaffRole[]> = {
   "save-order": ["sales"], "advance-order": ["sales", "warehouse"], "cancel-order": ["sales"],
@@ -54,7 +55,7 @@ export class AdminService {
     const products = (await manager.getRepository(ProductEntity).find()).map(row => ({ ...row.data, published: row.published, revision: row.revision }));
     for (const branch of user.branches) stockByBranch[branch] = Object.fromEntries((await this.ledger.stock(products, branch, manager)).map(product => [product.id, product.stock]));
     const result: ApiAdminState = {
-      products, stockByBranch, categories: (await manager.getRepository(CategoryEntity).find()).map(row => row.data),
+      products, stockByBranch, categories: orderedCategories(await manager.getRepository(CategoryEntity).find()),
       customers: await this.ledger.customers((await manager.getRepository(CustomerEntity).find()).filter(row => user.branches.includes(row.branch as never)).map(row => ({ ...row.data, revision: row.revision })), manager),
       orders, approvals, warehouse: Object.fromEntries(rows.map((row) => [row.id, row.warehouse])),
       receipts: (await manager.getRepository(ReceiptEntity).find()).filter((row) => user.branches.includes(row.branch as never)).map((row) => row.data),

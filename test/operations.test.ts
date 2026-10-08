@@ -3,7 +3,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { policyPrice, validDate } from "../dist/catalog/price-policy.service";
-import { reservedQuantity } from "../dist/ledger/ledger.service";
+import { reservedQuantity, reservedQuantities } from "../dist/ledger/ledger.service";
 import {
   branchMap,
   KiotClient,
@@ -109,6 +109,16 @@ test("Reservations apply only to confirmed, unissued orders and support exclusio
   for (const status of ["Đã hủy", "Đang giao", "Hoàn tất"] as const)
     assert.equal(reservedQuantity([{ ...order, status }], "sku"), 0);
 });
+test("Reservation maps preserve exclusions, stages and first-line semantics", () => {
+  const row = { id: "first", status: "Chờ soạn hàng", items: [{ productId: "a", quantity: 2 }, { productId: "b", quantity: 3 }, { productId: "a", quantity: 99 }] } as AdminOrder;
+  const rows = [row, { ...row, id: "second", status: "Đang soạn", items: [{ productId: "a", quantity: 4 }] }, { ...row, id: "finished", status: "Hoàn tất" }] as AdminOrder[];
+  assert.deepEqual([...reservedQuantities(rows)], [["a", 6], ["b", 3]]);
+  assert.equal(reservedQuantities(rows, "first").get("a"), 4);
+  assert.equal(reservedQuantities(rows, "first").has("b"), false);
+  assert.equal(reservedQuantity(rows, "unknown"), 0);
+  assert.equal(reservedQuantities([]).size, 0);
+});
+
 test("Recovery digests and Kiot mapping/uncertain outcomes never enable blind retries", () => {
   assert.equal(resetDigest("token").length, 64);
   assert.notEqual(resetDigest("token"), "token");

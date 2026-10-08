@@ -4,16 +4,20 @@ import { CategoryEntity, CustomerEntity, ProductEntity } from "../database/entit
 import { AuthService, type AuthRequest } from "../auth/auth.service";
 import { PricePolicyService } from "./price-policy.service";
 import { LedgerService } from "../ledger/ledger.service";
+import { orderedCategories } from "./category.rules";
 
 @Controller("catalog")
 export class CatalogController {
   constructor(private readonly db: DatabaseService, private readonly auth: AuthService, private readonly pricing: PricePolicyService, private readonly ledger: LedgerService) {}
   @Get() async catalog(@Req() request: AuthRequest) {
-    const user = await this.auth.authenticate(request, false);
-    const rows = await this.db.source.getRepository(ProductEntity).find({ where: { published: true }, order: { id: "ASC" } });
+    const [user, rows, categories] = await Promise.all([
+      this.auth.authenticate(request, false),
+      this.db.source.getRepository(ProductEntity).find({ select: { data: true }, where: { published: true }, order: { id: "ASC" } }),
+      this.db.source.getRepository(CategoryEntity).find(),
+    ]);
     const customer = user?.customerId ? await this.db.source.getRepository(CustomerEntity).findOneBy({ id: user.customerId }) : null;
     const products = await this.pricing.personalize(await this.ledger.stock(rows.map(row => row.data), customer?.branch || "Quy Nhơn"), customer?.data);
-    return { products, categories: (await this.db.source.getRepository(CategoryEntity).find()).map((row) => row.data) };
+    return { products, categories: orderedCategories(categories, true) };
   }
   @Get(":slug") async product(@Param("slug") slug: string) {
     const row = await this.db.source.getRepository(ProductEntity).findOne({ where: [{ slug, published: true }, { id: slug, published: true }] });

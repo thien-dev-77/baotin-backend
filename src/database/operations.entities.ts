@@ -2,6 +2,7 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  Index,
   PrimaryColumn,
   PrimaryGeneratedColumn,
   VersionColumn,
@@ -21,6 +22,7 @@ export class PricePolicyEntity {
   @VersionColumn() revision!: number;
 }
 @Entity("inventory_balances")
+@Index("inventory_branch_product_idx", ["branch", "productId"])
 export class InventoryEntity {
   @PrimaryColumn() id!: string;
   @Column() branch!: string;

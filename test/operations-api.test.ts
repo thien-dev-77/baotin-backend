@@ -8,13 +8,14 @@ import { config } from "dotenv";
 import { Client } from "pg";
 import { DataSource } from "typeorm";
 import { DatabaseService } from "../dist/database/database.service";
-import { entities, UserEntity } from "../dist/database/entities";
+import { entities, OrderEntity, ProductEntity, UserEntity } from "../dist/database/entities";
 import { KiotClient } from "../dist/integrations/kiot-client";
 import { KiotService } from "../dist/integrations/kiot.service";
-import { LedgerService } from "../dist/ledger/ledger.service";
+import { LedgerService, reservedQuantity } from "../dist/ledger/ledger.service";
 import { CustomerEntity } from "../dist/database/entities";
 import {
   CreditEntity,
+  InventoryEntity,
   LedgerEntity,
 } from "../dist/database/operations.entities";
 import type { AdminOrder } from "../src/types/domain.types";
@@ -646,6 +647,38 @@ test(
           }
         },
       );
+      await t.test("Optimized stock matches full-history calculations and excludes other branches", async () => {
+        const source = await new DataSource({ type: "postgres", url: process.env.DATABASE_URL, schema, entities, synchronize: false }).initialize();
+        try {
+          const ledger = new LedgerService({ source } as DatabaseService);
+          const products = (await source.getRepository(ProductEntity).find()).map(row => row.data);
+          const before = await source.getRepository(OrderEntity).find({ where: { branch: "Quy Nhơn" } });
+          const baseOrder = before[0].data;
+          const prefix = `stock-qa-${randomUUID()}`;
+          const quantities = [2, 3, 4, 700, 500];
+          const statuses = ["Chờ soạn hàng", "Đang soạn", "Sẵn sàng giao", "Hoàn tất", "Đã hủy"] as const;
+          await source.getRepository(OrderEntity).save(statuses.map((status, index) => ({
+            id: `${prefix}-${index}`, branch: "Quy Nhơn", customerId: null, guestId: null,
+            data: { ...baseOrder, id: `${prefix}-${index}`, status, items: [{ productId: products[0].id, quantity: quantities[index], unitPrice: products[0].price }] },
+          })));
+          await source.getRepository(OrderEntity).save({ id: `${prefix}-other`, branch: "Tuy Hòa", customerId: null, guestId: null, data: { ...baseOrder, id: `${prefix}-other`, branch: "Tuy Hòa", status: "Chờ soạn hàng", items: [{ productId: products[0].id, quantity: 900, unitPrice: products[0].price }] } });
+          const allOrders = (await source.getRepository(OrderEntity).find({ where: { branch: "Quy Nhơn" } })).map(row => row.data);
+          const balances = await source.getRepository(InventoryEntity).find({ where: { branch: "Quy Nhơn" } });
+          for (const except of [undefined, `${prefix}-0`]) {
+            const result = await ledger.stock(products, "Quy Nhơn", source.manager, except);
+            for (const product of result) {
+              const onHand = balances.find(row => row.productId === product.id)?.onHand ?? products.find(row => row.id === product.id)!.stock;
+              const reserved = reservedQuantity(allOrders, product.id, except);
+              assert.equal(product.onHand, onHand);
+              assert.equal(product.reserved, reserved);
+              assert.equal(product.stock, Math.max(0, onHand - reserved));
+            }
+          }
+          assert.deepEqual(await ledger.stock([], "Quy Nhơn"), []);
+          const single = await ledger.stock([products[0]], "Quy Nhơn");
+          assert.equal(single[0].reserved, reservedQuantity(allOrders, products[0].id));
+        } finally { await source.destroy(); }
+      });
       await t.test(
         "Accounts, branch grants, last admin guard, password change and token single-use",
         async () => {

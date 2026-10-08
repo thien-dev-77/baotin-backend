@@ -2,6 +2,8 @@
 
 Customer profiles and phone onboarding: [Customer Management](docs/customer-management.md).
 
+Category management and dynamic public navigation: [Category Management](docs/category-management.md).
+
 NestJS 11, TypeScript, TypeORM PostgreSQL va JWT HttpOnly cookie.
 Repo backend tach rieng cho [Bao Tin frontend](https://github.com/thien-dev-77/baotin-frontend).
 Frontend khong duoc dong goi trong repo nay.
@@ -157,3 +159,7 @@ Chua co auto Kiot stock/debt/status sync, bank/refund hay production acceptance.
 
 Doc [Experience API Rollout](docs/experience-rollout.md) cho thong bao admin/B2B,
 B2B xin gia/thuong mua, PDF, xu ly tu van, CMS/reviews, KPI/tuoi no va read-only polling.
+
+## Catalog Performance
+
+Stock/catalog query optimizations and deployment notes: [catalog-performance.md](docs/catalog-performance.md).

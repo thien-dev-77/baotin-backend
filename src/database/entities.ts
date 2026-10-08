@@ -1,4 +1,4 @@
-import { Column, CreateDateColumn, Entity, PrimaryColumn, PrimaryGeneratedColumn, UpdateDateColumn, VersionColumn } from "typeorm";
+import { Column, CreateDateColumn, Entity, Index, PrimaryColumn, PrimaryGeneratedColumn, UpdateDateColumn, VersionColumn } from "typeorm";
 import type { AdminApproval, AdminCustomer, AdminOrder, Branch, Category, Order, Product, StaffRole } from "../types/domain.types";
 import type { WarehouseRecord } from "../admin/rules/warehouse.rules";
 import type { Receipt } from "../admin/rules/accounting.rules";
@@ -14,7 +14,7 @@ export class ProductEntity {
   @VersionColumn() revision!: number;
 }
 @Entity("categories")
-export class CategoryEntity { @PrimaryColumn() slug!: string; @Column("jsonb") data!: Category; }
+export class CategoryEntity { @PrimaryColumn() slug!: string; @Column("jsonb") data!: Category; @VersionColumn({ default: 1 }) revision!: number; }
 @Entity("customers")
 export class CustomerEntity { @PrimaryColumn() id!: string; @Column() branch!: string; @Column("jsonb") data!: AdminCustomer; @VersionColumn({ default: 1 }) revision!: number; }
 @Entity("users")
@@ -38,6 +38,7 @@ export class SessionEntity {
   @Column("timestamptz") expiresAt!: Date;
 }
 @Entity("orders")
+@Index("orders_branch_idx", ["branch"])
 export class OrderEntity {
   @PrimaryColumn() id!: string;
   @Column() branch!: string;
