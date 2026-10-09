@@ -37,6 +37,9 @@ They also cover parallel confirmation, releasing reservations, single warehouse
 issue, customer price isolation, credit/receipt reversals and schema upgrades.
 All API tests refuse a non-local PostgreSQL database and use disposable schemas.
 
+Storefront API pagination and historical order labels are now implemented; see
+[orders-catalog-pagination.md](orders-catalog-pagination.md) for contracts and
+the lightweight server-side ranking limitations.
 Remaining: production query/connection timings, composite/expression indexing for
-very large active-order workloads, API pagination and cross-service cache
-invalidation. Do not globally cache customer prices or return old stock for writes.
+very large active-order workloads, pagination of other endpoints and cross-service
+cache invalidation. Do not globally cache customer prices or return old stock for writes.

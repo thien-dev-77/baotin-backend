@@ -62,6 +62,9 @@ export class NotificationsService {
         branches: user.branches.length ? user.branches : [""],
       });
   }
+  async unreadCount(user: UserEntity) {
+    return this.scope(user).andWhere('"readAt" IS NULL').getCount();
+  }
   async order(
     manager: EntityManager,
     branch: string,

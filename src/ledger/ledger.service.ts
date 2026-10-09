@@ -43,8 +43,8 @@ export function reservedQuantities(orders: AdminOrder[], except?: string) {
 @Injectable()
 export class LedgerService {
   constructor(private readonly db: DatabaseService) {}
-  async stock(
-    products: Product[],
+  async stock<T extends Pick<Product, "id" | "stock">>(
+    products: T[],
     branch: string,
     manager = this.db.source.manager,
     except?: string,
@@ -80,45 +80,38 @@ export class LedgerService {
     manager = this.db.source.manager,
     except?: string,
   ) {
-    const balances = await manager.getRepository(CreditEntity).find();
-    const orders = await manager.getRepository(OrderEntity).find();
-    const receipts = (await manager.getRepository(ReceiptEntity).find()).filter(
-      (row) => row.data.status === "Đã đối chiếu",
-    );
-    const entries = await manager
-      .getRepository(LedgerEntity)
-      .find({ where: { kind: "credit" } });
+    if (!customers.length) return [];
+    const customerIds = customers.map(customer => customer.id);
+    const [balances, orders, entries] = await Promise.all([
+      manager.getRepository(CreditEntity).find({ where: { customerId: In(customerIds) } }),
+      manager.getRepository(OrderEntity).find({ select: { id: true, customerId: true, data: true, dueDate: true }, where: { customerId: In(customerIds) } }),
+      manager.getRepository(LedgerEntity).find({ select: { reference: true }, where: { kind: "credit", resourceId: In(customerIds) } }),
+    ]);
+    const receipts = orders.length ? await manager.getRepository(ReceiptEntity).find({
+      select: { data: true },
+      where: { data: Raw(alias => `${alias} ->> 'status' = :posted AND ${alias} ->> 'orderId' IN (:...orderIds)`, { posted: "Đã đối chiếu", orderIds: orders.map(order => order.id) }) },
+    }) : [];
+    const balanceByCustomer = new Map(balances.map(row => [row.customerId, row]));
+    const postedReferences = new Set(entries.map(row => row.reference));
+    const paidByOrder = new Map<string, number>();
+    for (const receipt of receipts) paidByOrder.set(receipt.data.orderId, (paidByOrder.get(receipt.data.orderId) || 0) + receipt.data.amount);
+    const reservedByCustomer = new Map<string, number>();
+    const overdueByCustomer = new Map<string, number>();
+    const date = today();
+    for (const row of orders) {
+      if (!row.customerId) continue;
+      const unpaid = Math.max(0, row.data.total - (paidByOrder.get(row.id) || 0));
+      if (row.id !== except && row.data.credit && reservesStock(row.data)) reservedByCustomer.set(row.customerId, (reservedByCustomer.get(row.customerId) || 0) + unpaid);
+      if (row.dueDate && row.dueDate < date && postedReferences.has(`order:${row.id}:credit`)) overdueByCustomer.set(row.customerId, (overdueByCustomer.get(row.customerId) || 0) + unpaid);
+    }
     return customers.map((customer) => {
-      const balance = balances.find((row) => row.customerId === customer.id);
-      const rows = orders.filter((row) => row.customerId === customer.id);
-      const unpaid = (row: OrderEntity) =>
-        Math.max(
-          0,
-          row.data.total -
-            receipts
-              .filter((receipt) => receipt.data.orderId === row.id)
-              .reduce((sum, receipt) => sum + receipt.data.amount, 0),
-        );
-      const creditReserved = rows
-        .filter(
-          (row) =>
-            row.id !== except && row.data.credit && reservesStock(row.data),
-        )
-        .reduce((sum, row) => sum + unpaid(row), 0);
+      const balance = balanceByCustomer.get(customer.id);
+      const creditReserved = reservedByCustomer.get(customer.id) || 0;
       const debt = balance?.debt ?? customer.debt;
       const overdue = Math.min(
         Math.max(0, debt),
         (balance?.openingOverdue ?? customer.overdue) +
-          rows
-            .filter(
-              (row) =>
-                row.dueDate &&
-                row.dueDate < today() &&
-                entries.some(
-                  (entry) => entry.reference === `order:${row.id}:credit`,
-                ),
-            )
-            .reduce((sum, row) => sum + unpaid(row), 0),
+          (overdueByCustomer.get(customer.id) || 0),
       );
       return { ...customer, debt, overdue, creditReserved };
     });

@@ -22,6 +22,7 @@ import { KiotService } from "../dist/integrations/kiot.service";
 import { KiotReconciliationService } from "../dist/integrations/kiot-reconciliation.service";
 import { LedgerService } from "../dist/ledger/ledger.service";
 import { NotificationsService } from "../dist/notifications/notifications.service";
+import { NotificationEntity } from "../dist/database/experience.entities";
 
 config({ path: ".env.local", quiet: true });
 if (
@@ -250,6 +251,10 @@ test(
         "Notifications paginate, mark once and never expose another recipient",
         async () => {
           assert.equal((await guest.call("/notifications")).status, 401);
+          assert.equal((await guest.call("/notifications/count")).status, 401);
+          assert.deepEqual((await admin.call("/notifications/count")).data, { unreadCount: 1 });
+          assert.deepEqual((await customer.call("/notifications/count")).data, { unreadCount: 0 });
+          assert.deepEqual((await other.call("/notifications/count")).data, { unreadCount: 0 });
           const inbox = (await admin.call("/notifications")).data;
           assert.equal(inbox.unreadCount, 1);
           assert.equal(inbox.items[0].type, "consultation");
@@ -261,6 +266,7 @@ test(
             ).data.updated,
             0,
           );
+          assert.deepEqual((await admin.call("/notifications/count")).data, { unreadCount: 1 });
           assert.equal(
             (
               await admin.call("/notifications/read", "PATCH", {
@@ -281,8 +287,60 @@ test(
             (await admin.call("/notifications?unread=true")).data.total,
             0,
           );
+          assert.deepEqual((await admin.call("/notifications/count")).data, { unreadCount: 0 });
         },
       );
+      await t.test("Unread badges use one COUNT query with recipient, role and branch scope", async () => {
+        const source = new DataSource({
+          type: "postgres",
+          url: process.env.DATABASE_URL,
+          schema,
+          entities,
+          synchronize: false,
+        });
+        await source.initialize();
+        const repository = source.getRepository(NotificationEntity);
+        const ids: string[] = [];
+        try {
+          const user = await source.getRepository(UserEntity).findOneByOrFail({ email: "admin@baotin.local" });
+          const db = new DatabaseService();
+          db.source = source;
+          const service = new NotificationsService(db);
+          const scopedUser = Object.assign(new UserEntity(), user, { branches: ["Quy Nhơn"] });
+          const baseline = await service.unreadCount(scopedUser);
+          const fixtures = [
+            {},
+            { branch: null },
+            { readAt: new Date() },
+            { audienceRole: "warehouse" },
+            { branch: "Outside QA" },
+            { userId: randomUUID() },
+          ].map((overrides) => {
+            const id = randomUUID();
+            ids.push(id);
+            return repository.create({
+              id, userId: user.id, audienceRole: user.role, branch: "Quy Nhơn",
+              eventKey: `count-qa:${id}`, type: "order", title: "Count QA",
+              message: "Scoped notification", href: "/admin/orders", readAt: null,
+              ...overrides,
+            });
+          });
+          await repository.insert(fixtures);
+          const queries: string[] = [];
+          source.logger.logQuery = (query) => { queries.push(query); };
+          assert.equal(await service.unreadCount(scopedUser), baseline + 2);
+          assert.equal(queries.length, 1);
+          assert.match(queries[0], /SELECT COUNT\(/);
+          assert.doesNotMatch(queries[0], /ORDER BY|LIMIT|OFFSET/);
+          assert.deepEqual((await admin.call("/notifications/count")).data, { unreadCount: baseline + 2 });
+          const indexes = await sql.query("SELECT indexdef FROM pg_indexes WHERE schemaname = $1 AND indexname = 'notifications_unread_scope_idx'", [schema]);
+          assert.equal(indexes.rowCount, 1);
+          assert.match(indexes.rows[0].indexdef, /WHERE \("readAt" IS NULL\)/);
+        } finally {
+          if (ids.length) await repository.delete(ids);
+          await source.destroy();
+        }
+      });
       await t.test(
         "Checkout idempotency emits one notification per recipient",
         async () => {

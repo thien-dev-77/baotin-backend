@@ -4,6 +4,8 @@ Customer profiles and phone onboarding: [Customer Management](docs/customer-mana
 
 Category management and dynamic public navigation: [Category Management](docs/category-management.md).
 
+Scoped admin data, private frontend cache and compact commands: [Admin Performance](docs/admin-performance.md).
+
 NestJS 11, TypeScript, TypeORM PostgreSQL va JWT HttpOnly cookie.
 Repo backend tach rieng cho [Bao Tin frontend](https://github.com/thien-dev-77/baotin-frontend).
 Frontend khong duoc dong goi trong repo nay.
@@ -163,3 +165,5 @@ B2B xin gia/thuong mua, PDF, xu ly tu van, CMS/reviews, KPI/tuoi no va read-only
 ## Catalog Performance
 
 Stock/catalog query optimizations and deployment notes: [catalog-performance.md](docs/catalog-performance.md).
+Historical product snapshots, paginated catalog APIs and coordinated rollout:
+[orders-catalog-pagination.md](docs/orders-catalog-pagination.md).

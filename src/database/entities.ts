@@ -11,11 +11,13 @@ export class ProductEntity {
   @Column({ unique: true }) slug!: string;
   @Column("jsonb") data!: Product;
   @Column({ default: true }) published!: boolean;
+  @CreateDateColumn() createdAt!: Date;
   @VersionColumn() revision!: number;
 }
 @Entity("categories")
 export class CategoryEntity { @PrimaryColumn() slug!: string; @Column("jsonb") data!: Category; @VersionColumn({ default: 1 }) revision!: number; }
 @Entity("customers")
+@Index("customers_branch_idx", ["branch"])
 export class CustomerEntity { @PrimaryColumn() id!: string; @Column() branch!: string; @Column("jsonb") data!: AdminCustomer; @VersionColumn({ default: 1 }) revision!: number; }
 @Entity("users")
 export class UserEntity {
@@ -39,6 +41,7 @@ export class SessionEntity {
 }
 @Entity("orders")
 @Index("orders_branch_idx", ["branch"])
+@Index("orders_customer_idx", ["customerId"])
 export class OrderEntity {
   @PrimaryColumn() id!: string;
   @Column() branch!: string;
@@ -55,8 +58,10 @@ export class OrderEntity {
   @UpdateDateColumn() updatedAt!: Date;
 }
 @Entity("approvals")
+@Index("approvals_branch_idx", ["branch"])
 export class ApprovalEntity { @PrimaryColumn() id!: string; @Column() branch!: string; @Column("jsonb") data!: AdminApproval; }
 @Entity("receipts")
+@Index("receipts_branch_idx", ["branch"])
 export class ReceiptEntity { @PrimaryColumn() id!: string; @Column() branch!: string; @Column("jsonb") data!: Receipt; }
 @Entity("audit_events")
 export class AuditEntity {

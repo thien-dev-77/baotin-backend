@@ -16,13 +16,12 @@ import { PricePolicyEntity } from "../database/operations.entities";
 import type { AdminCustomer, Product } from "../types/domain.types";
 import type { PricePolicy } from "../types/operations.types";
 
-export function policyPrice(
-  product: Product,
+export function selectPricePolicy(
   customer: AdminCustomer | undefined,
   policies: PricePolicy[],
   date: string,
 ) {
-  if (!customer || customer.status !== "Đang hoạt động") return product.price;
+  if (!customer || customer.status !== "Đang hoạt động") return undefined;
   const matches = policies.filter(
     (policy) =>
       policy.active &&
@@ -40,7 +39,10 @@ export function policyPrice(
       b.startsOn.localeCompare(a.startsOn) ||
       a.id.localeCompare(b.id),
   );
-  const policy = matches[0];
+  return matches[0];
+}
+
+export function effectivePolicyPrice(product: Pick<Product, "id" | "price">, policy: PricePolicy | undefined) {
   return policy
     ? (policy.prices[product.id] ??
         Math.max(
@@ -48,6 +50,10 @@ export function policyPrice(
           Math.round((product.price * (100 - policy.discount)) / 100),
         ))
     : product.price;
+}
+
+export function policyPrice(product: Product, customer: AdminCustomer | undefined, policies: PricePolicy[], date: string) {
+  return effectivePolicyPrice(product, selectPricePolicy(customer, policies, date));
 }
 export function validDate(value: string) {
   return (

@@ -15,6 +15,8 @@
     "test:experience": "npm run build && tsx --test test/experience-api.test.ts",
     "test:customers": "npm run build && tsx --test test/customers-api.test.ts",
     "test:categories": "npm run build && tsx --test test/categories-api.test.ts",
+    "test:catalog": "npm run build && tsx --test test/catalog-query-api.test.ts",
+    "test:admin-resources": "npm run build && tsx --test test/admin-resources-api.test.ts",
     "test:api": "tsx --test test/api.test.ts",
     "db:local": "tsx scripts/local-postgres.ts",
     "dev:local": "ENV_FILE=.env.local npm run dev"

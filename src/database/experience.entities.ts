@@ -27,6 +27,9 @@ export type ContentData = {
 @Entity("notifications")
 @Index(["userId", "createdAt"])
 @Index(["userId", "eventKey"], { unique: true })
+@Index("notifications_unread_scope_idx", ["userId", "audienceRole", "branch"], {
+  where: '"readAt" IS NULL',
+})
 export class NotificationEntity {
   @PrimaryGeneratedColumn("uuid") id!: string;
   @Column("uuid") userId!: string;

@@ -1,10 +1,18 @@
-import { Type } from "class-transformer";
+import { Transform, Type } from "class-transformer";
 import { ArrayMaxSize, ArrayMinSize, IsArray, IsBoolean, IsDefined, IsIn, IsInt, IsObject, IsOptional, IsString, Length, Max, MaxLength, Min, ValidateNested } from "class-validator";
 import { branches } from "../types/domain.types";
 import { ItemDto } from "../orders/orders.dto";
 import { receiptMethods } from "./rules/accounting.rules";
 import { approvalTypes } from "./rules/approval.rules";
 import { salesDeliveries, salesPayments, salesSources } from "./rules/sales.rules";
+import { adminResources } from "./admin-resources";
+
+export class AdminResourcesDto {
+  @IsIn(branches) branch!: typeof branches[number];
+  @Transform(({ value }: { value: unknown }) => typeof value === "string" ? value.split(",") : value)
+  @IsArray() @ArrayMinSize(1) @ArrayMaxSize(adminResources.length) @IsIn(adminResources, { each: true })
+  include!: typeof adminResources[number][];
+}
 
 export const actions = ["save-order", "advance-order", "cancel-order", "create-approval", "decide-approval", "customer-status", "publish-product", "pick-item", "report-shortage", "resolve-shortage", "create-receipt", "reconcile-receipt", "void-receipt", "due-date"] as const;
 export class AdminCommandDto {
@@ -13,6 +21,7 @@ export class AdminCommandDto {
   @IsOptional() @IsString() @Length(1, 100) id?: string;
   @IsObject() payload!: Record<string, unknown>;
   @IsOptional() @IsInt() @Min(1) expectedRevision?: number;
+  @IsOptional() @IsBoolean() returnState?: boolean;
 }
 export class DetailsDto {
   @IsString() @Length(1, 100) recipient!: string;

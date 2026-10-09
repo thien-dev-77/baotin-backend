@@ -12,6 +12,10 @@ export class NotificationsController {
     private readonly auth: AuthService,
     private readonly service: NotificationsService,
   ) {}
+  @Get("count") async count(@Req() request: AuthRequest) {
+    const user = (await this.auth.authenticate(request))!;
+    return { unreadCount: await this.service.unreadCount(user) };
+  }
   @Get() async list(
     @Req() request: AuthRequest,
     @Query("page") page = "1",

@@ -7,6 +7,7 @@ import { AuthService } from "./auth/auth.service";
 import { DatabaseService } from "./database/database.service";
 import { SeedService } from "./database/seed.service";
 import { CatalogController } from "./catalog/catalog.controller";
+import { CatalogQueryService } from "./catalog/catalog-query.service";
 import { OrdersController } from "./orders/orders.controller";
 import { OrdersService } from "./orders/orders.service";
 import { AdminController } from "./admin/admin.controller";
@@ -43,6 +44,6 @@ import { AdminCategoriesController, CategoriesController } from "./catalog/categ
     return { secret };
   } }), ThrottlerModule.forRoot([{ ttl: 60000, limit: 240 }])],
   controllers: [AuthController, CatalogController, CategoriesController, AdminCategoriesController, OrdersController, AdminController, AccountController, CustomersController, MediaController, HealthController, ContactController, PricePolicyController, LedgerController, UserManagementController, KiotController, AdminProductsController, NotificationsController, CustomerActionsController, PublicContentController, AdminContentController, ReviewsController, AdminReviewsController, DocumentsController, ReportsController],
-  providers: [DatabaseService, SeedService, AuthService, OrdersService, AdminService, PricePolicyService, LedgerService, PasswordRecoveryService, KiotClient, KiotService, KiotReconciliationService, NotificationsService, { provide: APP_GUARD, useClass: ThrottlerGuard }]
+  providers: [DatabaseService, SeedService, AuthService, CatalogQueryService, OrdersService, AdminService, PricePolicyService, LedgerService, PasswordRecoveryService, KiotClient, KiotService, KiotReconciliationService, NotificationsService, { provide: APP_GUARD, useClass: ThrottlerGuard }]
 })
 export class AppModule {}

@@ -10,6 +10,7 @@ import { priceFor } from "../catalog/pricing";
 import { PricePolicyService } from "../catalog/price-policy.service";
 import { LedgerService } from "../ledger/ledger.service";
 import { NotificationsService } from "../notifications/notifications.service";
+import { captureOrderItems } from "./product-snapshot";
 
 export const shippingCost = (delivery: string) => delivery === "Nhận tại cửa hàng" ? 0 : delivery === "Chành xe" ? 50000 : 30000;
 
@@ -60,6 +61,7 @@ export class OrdersService {
         return customerOrder(previous);
       }
       const quote = await this.quote(input, user, manager);
+      quote.items = await captureOrderItems(manager, quote.items);
       if (input.expectedTotal !== undefined && quote.total !== input.expectedTotal) throw new ConflictException("Giá đã thay đổi. Làm mới báo giá trước khi đặt hàng.");
       const customer = user?.customerId ? await manager.getRepository(CustomerEntity).findOneBy({ id: user.customerId }) : null;
       if (input.payment === "Thanh toán công nợ B2B" && (!customer || customer.data.limit <= 0)) throw new BadRequestException("Khách chưa có hạn mức công nợ.");

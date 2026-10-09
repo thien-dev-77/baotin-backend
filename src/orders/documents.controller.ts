@@ -10,6 +10,7 @@ import {
 } from "@nestjs/common";
 import type { Response } from "express";
 import PDFDocument from "pdfkit";
+import { In } from "typeorm";
 import {
   AuthService,
   guestCookie,
@@ -76,7 +77,8 @@ export class DocumentsController {
         .find({ where: { branch: row.branch } })
     ).map((item) => item.data);
     const order = effectiveOrder(row, approvals);
-    const products = await this.db.source.getRepository(ProductEntity).find();
+    const legacyIds = order.items.filter(line => !line.snapshot).map(line => line.productId);
+    const products = legacyIds.length ? await this.db.source.getRepository(ProductEntity).find({ where: { id: In(legacyIds) } }) : [];
     const title = kind === "quote" ? "BÁO GIÁ" : "ĐƠN HÀNG";
     const doc = new PDFDocument({
       size: "A4",
@@ -109,17 +111,17 @@ export class DocumentsController {
       .text(`Địa chỉ: ${order.details?.address || "Nhận tại cửa hàng"}`)
       .moveDown();
     for (const [index, line] of order.items.entries()) {
-      const product = products.find((product) => product.id === line.productId);
+      const product = line.snapshot || products.find(product => product.id === line.productId)?.data;
       if (doc.y > 670) doc.addPage();
       doc
         .fillColor("#123354")
         .fontSize(11)
-        .text(`${index + 1}. ${product?.data.name || line.productId}`);
+        .text(`${index + 1}. ${product?.name || line.productId}`);
       doc
         .fillColor("#444444")
         .fontSize(10)
         .text(
-          `Mã: ${product?.data.code || line.productId} · SL: ${line.quantity} ${product?.data.unit || ""}`,
+          `Mã: ${product?.code || line.productId} · SL: ${line.quantity} ${product?.unit || ""}`,
         )
         .text(
           `Đơn giá: ${line.unitPrice.toLocaleString("vi-VN")} đ · Thành tiền: ${(line.unitPrice * line.quantity).toLocaleString("vi-VN")} đ`,

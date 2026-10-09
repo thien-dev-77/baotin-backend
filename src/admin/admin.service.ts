@@ -2,7 +2,7 @@ import { BadRequestException, ConflictException, ForbiddenException, Injectable,
 import { plainToInstance } from "class-transformer";
 import { validateSync } from "class-validator";
 import { randomUUID } from "node:crypto";
-import type { EntityManager } from "typeorm";
+import { In, Raw, type EntityManager } from "typeorm";
 import type { ApiAdminState } from "../types/api.types";
 import type { AdminOrder, StaffRole } from "../types/domain.types";
 import { orderStages } from "../types/domain.types";
@@ -15,11 +15,13 @@ import { DatabaseService } from "../database/database.service";
 import { assertPublishable } from "../catalog/product.rules";
 import { ApprovalEntity, AuditEntity, CategoryEntity, CustomerEntity, OrderEntity, ProductEntity, ReceiptEntity, UserEntity } from "../database/entities";
 import { businessDate, shippingCost } from "../orders/orders.service";
-import { AdminCommandDto, ApprovalDto, DecisionDto, DueDto, NoteDto, PickDto, PublishDto, ReasonDto, ReceiptDto, ReconcileDto, SalesDto, SalesQuoteDto, ShortageDto, StatusDto } from "./admin.dto";
+import { AdminCommandDto, AdminResourcesDto, ApprovalDto, DecisionDto, DueDto, NoteDto, PickDto, PublishDto, ReasonDto, ReceiptDto, ReconcileDto, SalesDto, SalesQuoteDto, ShortageDto, StatusDto } from "./admin.dto";
 import { PricePolicyService } from "../catalog/price-policy.service";
 import { LedgerService } from "../ledger/ledger.service";
 import { NotificationsService } from "../notifications/notifications.service";
 import { orderedCategories } from "../catalog/category.rules";
+import { captureOrderItems } from "../orders/product-snapshot";
+import { adminResources, commandResources, emptyAdminState, type AdminResource } from "./admin-resources";
 
 const permission: Record<AdminCommandDto["action"], StaffRole[]> = {
   "save-order": ["sales"], "advance-order": ["sales", "warehouse"], "cancel-order": ["sales"],
@@ -48,25 +50,53 @@ export class AdminService {
   assertStaff(user: UserEntity) { if (user.role === "b2b") throw new ForbiddenException("Chỉ dành cho nhân viên."); }
   async state(user: UserEntity, manager = this.db.source.manager, redact = true): Promise<ApiAdminState> {
     this.assertStaff(user);
-    const approvals = (await manager.getRepository(ApprovalEntity).find()).filter((row) => user.branches.includes(row.branch as never)).map((row) => row.data);
-    const rows = (await manager.getRepository(OrderEntity).find({ order: { createdAt: "ASC" } })).filter((row) => user.branches.includes(row.branch as never));
-    const orders = rows.map((row) => effectiveOrder(row, approvals));
-    const stockByBranch: Record<string, Record<string, number>> = {};
-    const products = (await manager.getRepository(ProductEntity).find()).map(row => ({ ...row.data, published: row.published, revision: row.revision }));
-    for (const branch of user.branches) stockByBranch[branch] = Object.fromEntries((await this.ledger.stock(products, branch, manager)).map(product => [product.id, product.stock]));
-    const result: ApiAdminState = {
-      products, stockByBranch, categories: orderedCategories(await manager.getRepository(CategoryEntity).find()),
-      customers: await this.ledger.customers((await manager.getRepository(CustomerEntity).find()).filter(row => user.branches.includes(row.branch as never)).map(row => ({ ...row.data, revision: row.revision })), manager),
-      orders, approvals, warehouse: Object.fromEntries(rows.map((row) => [row.id, row.warehouse])),
-      receipts: (await manager.getRepository(ReceiptEntity).find()).filter((row) => user.branches.includes(row.branch as never)).map((row) => row.data),
-      paymentDueDates: Object.fromEntries(rows.filter((row) => row.dueDate).map((row) => [row.id, row.dueDate!])), today: businessDate()
-    };
+    return { ...emptyAdminState(), ...await this.readResources(user, user.branches, adminResources, manager, redact) };
+  }
+  async resources(user: UserEntity, query: AdminResourcesDto) {
+    this.assertStaff(user);
+    if (!user.branches.includes(query.branch)) throw new ForbiddenException("Không có quyền xem chi nhánh này.");
+    return this.readResources(user, [query.branch], query.include);
+  }
+  private async readResources(user: UserEntity, branches: string[], include: readonly AdminResource[], manager = this.db.source.manager, redact = true): Promise<Partial<ApiAdminState>> {
+    const wants = (resource: AdminResource) => include.includes(resource);
+    const where = { branch: In(branches) };
+    const warehouseOnly = redact && user.role === "warehouse";
+    const [approvalRows, rows, productRows, categoryRows, customerRows, receiptRows] = await Promise.all([
+      wants("approvals") || wants("orders") ? manager.getRepository(ApprovalEntity).find({ select: { data: true }, where }) : [],
+      wants("orders") ? manager.getRepository(OrderEntity).find({ where: { ...where, ...(warehouseOnly ? { data: Raw(alias => `${alias} ->> 'status' IN (:...stages)`, { stages: ["Chờ soạn hàng", "Đang soạn", "Sẵn sàng giao"] }) } : {}) }, order: { createdAt: "ASC" } }) : [],
+      wants("products") ? manager.getRepository(ProductEntity).find({ select: { data: true, published: true, revision: true } }) : [],
+      wants("categories") ? manager.getRepository(CategoryEntity).find() : [],
+      wants("customers") ? manager.getRepository(CustomerEntity).find({ select: { data: true, revision: true }, where }) : [],
+      wants("receipts") && !warehouseOnly ? manager.getRepository(ReceiptEntity).find({ select: { data: true }, where }) : [],
+    ]);
+    const approvals = approvalRows.map(row => row.data);
+    const products = productRows.map(row => ({ ...row.data, published: row.published, revision: row.revision }));
+    const result: Partial<ApiAdminState> = { today: businessDate() };
+    if (wants("orders")) {
+      result.orders = rows.map(row => effectiveOrder(row, approvals));
+      result.warehouse = Object.fromEntries(rows.map(row => [row.id, row.warehouse]));
+      result.paymentDueDates = Object.fromEntries(rows.filter(row => row.dueDate).map(row => [row.id, row.dueDate!]));
+    }
+    if (wants("approvals")) result.approvals = approvals;
+    if (wants("receipts")) result.receipts = receiptRows.map(row => row.data);
+    if (wants("categories")) result.categories = orderedCategories(categoryRows);
+    await Promise.all([
+      wants("products") ? (async () => {
+        result.products = products;
+        result.stockByBranch = Object.fromEntries(await Promise.all(branches.map(async branch => [branch, Object.fromEntries((await this.ledger.stock(products, branch, manager)).map(product => [product.id, product.stock]))])));
+      })() : undefined,
+      wants("customers") ? (async () => {
+        const customers = customerRows.map(row => ({ ...row.data, revision: row.revision }));
+        result.customers = warehouseOnly ? customers : await this.ledger.customers(customers, manager);
+      })() : undefined,
+    ]);
     if (redact && user.role === "warehouse") {
-      result.orders = result.orders.filter(isWarehouseOrder).map((order) => ({ ...order, total: 0, items: order.items.map((item) => ({ ...item, unitPrice: 0 })) }));
-      result.products = result.products.map((product) => ({ ...product, price: 0, oldPrice: undefined, customerPrice: undefined }));
-      result.customers = result.customers.map((customer) => ({ id: customer.id, name: customer.name, contact: customer.contact, phone: customer.phone, group: customer.group, branch: customer.branch, status: customer.status, limit: 0, debt: 0, overdue: 0, creditReserved: 0 }));
-      result.approvals = []; result.receipts = []; result.paymentDueDates = {};
-      result.warehouse = Object.fromEntries(Object.entries(result.warehouse).filter(([id]) => result.orders.some((order) => order.id === id)));
+      if (result.orders) result.orders = result.orders.filter(isWarehouseOrder).map((order) => ({ ...order, total: 0, items: order.items.map((item) => ({ ...item, unitPrice: 0 })) }));
+      if (result.products) result.products = result.products.map((product) => ({ ...product, price: 0, oldPrice: undefined, customerPrice: undefined }));
+      if (result.customers) result.customers = result.customers.map((customer) => ({ id: customer.id, name: customer.name, contact: customer.contact, phone: customer.phone, group: customer.group, branch: customer.branch, status: customer.status, limit: 0, debt: 0, overdue: 0, creditReserved: 0 }));
+      if (result.approvals) result.approvals = [];
+      if (result.receipts) result.receipts = [];
+      if (result.paymentDueDates) result.paymentDueDates = {};
     }
     return result;
   }
@@ -91,7 +121,7 @@ export class AdminService {
     this.assertStaff(user);
     if (!user.branches.includes(command.branch) || (user.role !== "admin" && !permission[command.action].includes(user.role as StaffRole))) throw new ForbiddenException("Không có quyền thao tác tại chi nhánh này.");
     return this.db.transaction(async (manager) => {
-      const state = await this.state(user, manager, false);
+      const state = { ...emptyAdminState(), ...await this.readResources(user, [command.branch], commandResources[command.action], manager, false) };
       state.products = state.products.map(product => ({ ...product, stock: state.stockByBranch?.[command.branch]?.[product.id] ?? 0 }));
       const orders = manager.getRepository(OrderEntity);
       let resourceId = command.id || "";
@@ -109,6 +139,7 @@ export class AdminService {
           const previous = command.id ? await orderFor(command.id) : undefined;
           if (previous && (previous.order.status !== "Chờ xác nhận" || previous.order.approvalId || previous.order.customerId !== (draft.customerId || null) || previous.order.source !== draft.source || !draft.reason?.trim())) throw new ConflictException("Chỉ sửa đơn pending chưa có yêu cầu duyệt, cần giữ nguồn/khách và nhập lý do.");
           const data = await this.salesQuote(user, { ...draft, branch: command.branch, id: command.id }, manager);
+          data.items = await captureOrderItems(manager, data.items, previous?.order.items);
           if ((previous?.row.checkout || draft.expectedTotal !== undefined) && draft.expectedTotal !== data.total) throw new ConflictException("Giá đã thay đổi. Cập nhật báo giá trước khi lưu.");
           const customer = state.customers.find((item) => item.id === draft.customerId);
           resourceId = previous?.row.id || `BT-${randomUUID().slice(0, 8).toUpperCase()}`;
@@ -259,7 +290,7 @@ export class AdminService {
         const row = await orders.findOneByOrFail({ id: receipt.data.orderId });
         if (row.customerId) await this.notifications.emit(manager, { key: `receipt:${resourceId}:${receipt.data.status}`, type: "payment", branch: row.branch, customerId: row.customerId, preference: 1, title: `Thanh toán đơn ${row.id}`, message: `${receipt.data.status} · ${receipt.data.amount.toLocaleString("vi-VN")} đ`, href: "/account/credit" });
       }
-      return { id: resourceId, state: await this.state(user, manager) };
+      return command.returnState === false ? { id: resourceId } : { id: resourceId, state: await this.state(user, manager) };
     });
   }
 }

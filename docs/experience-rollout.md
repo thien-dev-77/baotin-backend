@@ -31,6 +31,7 @@ remain; never expose backend secrets through NEXT_PUBLIC variables.
 
 | Paths | Access / behavior |
 | --- | --- |
+| `/notifications/count` GET | `{unreadCount}` only; unread rows in own current-role/branch scope |
 | `/notifications` GET, `/notifications/read` PATCH | Own current-role/branch inbox; page size 20, individual/all read |
 | `/account/frequently-bought` GET | Active B2B; own issued/completed quantities; published SKU/current price/stock |
 | `/account/price-requests` GET/POST | Active B2B; own pending order, revision/reason/SKU prices; existing approvals |
@@ -56,7 +57,15 @@ reconciliation/reversal, manual overdue reminder, new consultation, pending
 review and Kiot discrepancies. Staff recipients are role/branch restricted.
 B2B order/payment events respect settings (order index 0, payment/debt index 1).
 Warehouse receives confirmed-order notices, not financial inbox items.
-Frontend polls every 30 seconds while visible. No SMTP/Zalo delivery or WebSocket
+Frontend fetches only `/notifications/count` for the bell, polling every 30 seconds
+while visible. `/notifications` loads only on the admin/B2B inbox screens; marking
+read refreshes the count and the list only if that screen is still mounted.
+The count uses one SQL COUNT, with the same recipient/role/branch rules as the inbox,
+and never selects messages or paginates rows. Guests receive 401. The partial index
+`notifications_unread_scope_idx` covers `(userId,audienceRole,branch)` where readAt
+is null. Back up and stage the TypeORM synchronize schema change before production;
+deploy this endpoint before the frontend that requires it.
+No SMTP/Zalo delivery or WebSocket
 transport is implied. Notifications are prospective, not replayed history.
 
 ## PDF And Media

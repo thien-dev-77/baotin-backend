@@ -38,6 +38,7 @@ export class CreditEntity {
   @Column("bigint", { transformer: integer }) openingOverdue!: number;
 }
 @Entity("ledger_entries")
+@Index("ledger_kind_resource_idx", ["kind", "resourceId"])
 export class LedgerEntity {
   @PrimaryGeneratedColumn("uuid") id!: string;
   @Column({ unique: true }) reference!: string;
