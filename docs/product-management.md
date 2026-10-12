@@ -15,14 +15,17 @@ Warehouse, accountant, B2B and anonymous users cannot write products.
 | POST | `/media/product-images` | Multipart `images`, 1-10 files; returns `{ urls: string[] }` |
 
 Product fields: `name`, `code`, `slug`, `category`, `subcategory`, `brand`,
-`unit`, `price`, optional `oldPrice`, `specification`, `material`, `color`,
+`unit`, legacy `price`/optional `oldPrice`, or configured `listPrice`,
+`b2cDiscount`, `b2bDiscount`, `specification`, `material`, `color`,
 `size`, `origin`, `description`, `gallery`, `featured`, `published`.
 Unknown properties, client stock/customer prices and invalid numbers are rejected.
 `description` is plain text, not HTML; storefront renders it escaped.
 Category must exist; optional subcategory must belong to it.
 SKU uniqueness is case-insensitive after trimming; slugs are unique URL-safe
 lowercase strings. Omitted `oldPrice` clears the previous value on update.
-Old price cannot be below retail price.
+Old price cannot be below retail price. With list/discount pricing, the server
+derives both prices; content-only edits preserve legacy prices. See
+[pricing contract](product-pricing.md) for policy priority and read privacy.
 
 Existing product IDs are stable. A new product starts with zero stock.
 Stock changes belong to `/admin/ledger`, not the content editor. Code/unit

@@ -15,6 +15,7 @@ import {
 import { PricePolicyEntity } from "../database/operations.entities";
 import type { AdminCustomer, Product } from "../types/domain.types";
 import type { PricePolicy } from "../types/operations.types";
+import { defaultB2bPrice, discountedPrice, pricingBase, publicProduct, retailPrice, retailProjection, type PricingProduct } from "./product-pricing";
 
 export function selectPricePolicy(
   customer: AdminCustomer | undefined,
@@ -42,17 +43,15 @@ export function selectPricePolicy(
   return matches[0];
 }
 
-export function effectivePolicyPrice(product: Pick<Product, "id" | "price">, policy: PricePolicy | undefined) {
+export function effectivePolicyPrice(product: PricingProduct & Pick<Product, "id">, policy: PricePolicy | undefined) {
   return policy
     ? (policy.prices[product.id] ??
-        Math.max(
-          1,
-          Math.round((product.price * (100 - policy.discount)) / 100),
-        ))
-    : product.price;
+        discountedPrice(pricingBase(product), policy.discount))
+    : defaultB2bPrice(product);
 }
 
 export function policyPrice(product: Product, customer: AdminCustomer | undefined, policies: PricePolicy[], date: string) {
+  if (customer?.status !== "Đang hoạt động") return retailPrice(product);
   return effectivePolicyPrice(product, selectPricePolicy(customer, policies, date));
 }
 export function validDate(value: string) {
@@ -87,11 +86,11 @@ export class PricePolicyService {
     customer: AdminCustomer | undefined,
     manager = this.db.source.manager,
   ) {
-    if (!customer)
-      return products.map(({ customerPrice: _price, ...product }) => product);
+    if (!customer || customer.status !== "Đang hoạt động")
+      return products.map(publicProduct);
     const policies = await this.list(customer.branch, manager);
     return products.map((product) => ({
-      ...product,
+      ...retailProjection(product),
       customerPrice: policyPrice(product, customer, policies, today()),
     }));
   }

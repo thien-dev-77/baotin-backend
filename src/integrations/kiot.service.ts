@@ -6,6 +6,7 @@ import {
   ServiceUnavailableException,
 } from "@nestjs/common";
 import { DatabaseService } from "../database/database.service";
+import { hasRetailPricing, retailPrice } from "../catalog/product-pricing";
 import {
   ApprovalEntity,
   AuditEntity,
@@ -267,6 +268,7 @@ export class KiotService {
           price: product.data.price,
           published: product.published,
         };
+        if (hasRetailPricing(product.data) && remote.basePrice !== retailPrice(product.data)) throw new ConflictException(`Sản phẩm ${product.data.code} đang dùng giá niêm yết và chiết khấu. Cập nhật cấu hình giá trong admin trước khi đồng bộ.`);
         product.data = { ...product.data, price: remote.basePrice };
         if (!remote.isActive || !remote.allowsSale) product.published = false;
         await manager.getRepository(ProductEntity).save(product);

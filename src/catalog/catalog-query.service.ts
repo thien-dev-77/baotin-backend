@@ -7,6 +7,7 @@ import type { Product } from "../types/domain.types";
 import { effectivePolicyPrice, PricePolicyService, selectPricePolicy, today } from "./price-policy.service";
 import { orderedCategories } from "./category.rules";
 import type { CatalogQueryDto, CatalogSelectionDto } from "./catalog-query.dto";
+import { publicProduct, retailPrice, retailProjection, type PricingProduct } from "./product-pricing";
 
 const facetFields = ["brand", "material", "color", "size", "origin"] as const;
 const accents = "àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ";
@@ -14,7 +15,7 @@ const plain = Array.from(accents, char => char === "đ" ? "d" : char.normalize("
 export const normalizeSearch = (text: string) => text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d").replace(/Đ/g, "D").toLowerCase();
 const sqlSearch = `lower(translate(normalize(concat_ws(' ', p.data->>'name', p.data->>'code', p.data->>'brand', p.data->>'specification'), NFC), '${accents}${accents.toUpperCase()}', '${plain}${plain.toUpperCase()}'))`;
 const escapeLike = (value: string) => value.replace(/[\\%_]/g, "\\$&");
-type Candidate = { id: string; price: number; stock: number; featured: boolean; createdAt: Date };
+type Candidate = PricingProduct & { id: string; stock: number; featured: boolean; createdAt: Date };
 
 @Injectable()
 export class CatalogQueryService {
@@ -77,11 +78,13 @@ export class CatalogQueryService {
     // Rank lightweight rows, not full galleries/descriptions. Derived price and
     // available stock reuse the same policies/reservations as checkout.
     query.select("p.id", "id").addSelect("(p.data->>'price')::numeric", "price")
+      .addSelect("(p.data->>'listPrice')::numeric", "listPrice").addSelect("(p.data->>'b2cDiscount')::numeric", "b2cDiscount").addSelect("(p.data->>'b2bDiscount')::numeric", "b2bDiscount")
       .addSelect("(p.data->>'stock')::integer", "stock").addSelect("(p.data->>'featured')::boolean", "featured").addSelect("p.createdAt", "createdAt");
     const [raw, metadata, context] = await Promise.all([query.getRawMany<Candidate>(), this.metadata(), this.context(user)]);
     const policy = selectPricePolicy(context.customer, context.customer ? await this.pricing.list(context.branch) : [], today());
-    const candidates = await this.ledger.stock(raw.map(row => ({ ...row, price: Number(row.price), stock: Number(row.stock) })), context.branch);
-    const price = (row: Candidate) => effectivePolicyPrice(row, policy);
+    const candidates = await this.ledger.stock(raw.map(row => ({ ...row, price: Number(row.price), stock: Number(row.stock), listPrice: row.listPrice == null ? undefined : Number(row.listPrice), b2cDiscount: row.b2cDiscount == null ? undefined : Number(row.b2cDiscount), b2bDiscount: row.b2bDiscount == null ? undefined : Number(row.b2bDiscount) })), context.branch);
+    const activeB2b = context.customer?.status === "Đang hoạt động";
+    const price = (row: Candidate) => activeB2b ? effectivePolicyPrice(row, policy) : retailPrice(row);
     const filtered = candidates.filter(row =>
       (input.min === undefined || price(row) >= input.min) && (input.max === undefined || price(row) <= input.max) &&
       (!input.stock?.length || input.stock.includes(row.stock > 0 ? "in" : "out")),
@@ -99,8 +102,8 @@ export class CatalogQueryService {
     const products = selected.flatMap(row => {
       const product = byId.get(row.id);
       if (!product) return [];
-      const { customerPrice: _price, ...retail } = product;
-      return [{ ...retail, stock: row.stock, ...(context.customer?.status === "Đang hoạt động" ? { customerPrice: price(row) } : {}) }];
+      const retail = activeB2b ? retailProjection(product) : publicProduct(product);
+      return [{ ...retail, stock: row.stock, ...(activeB2b ? { customerPrice: price(row) } : {}) }];
     });
     return { products, total, page, pageSize: input.pageSize, totalPages, ...metadata };
   }

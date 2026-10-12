@@ -10,6 +10,7 @@ import { runtimeAssetPath } from "../runtime-assets";
 import type { Product } from "../types/domain.types";
 import { ProductDto } from "./product.dto";
 import { assertPublishable } from "./product.rules";
+import { resolveProductPricing } from "./product-pricing";
 
 @Controller("admin/products")
 export class AdminProductsController {
@@ -38,7 +39,7 @@ export class AdminProductsController {
         .where("(LOWER(TRIM(product.data->>'code')) = LOWER(:code) OR product.slug = :slug)", { code: input.code, slug: input.slug })
         .andWhere("product.id <> :id", { id: id || "" }).getOne();
       if (duplicate) throw new ConflictException("Mã hàng hoặc đường dẫn đã được sử dụng.");
-      if (input.oldPrice != null && input.oldPrice < input.price) throw new BadRequestException("Giá trước giảm không được thấp hơn giá bán lẻ.");
+      const pricing = resolveProductPricing(input, previous?.data);
       // SKU/unit are identities used by stock, order snapshots and Kiot mappings.
       if (previous && (previous.data.code !== input.code || previous.data.unit !== input.unit)) {
         const hasOrder = await manager.getRepository(OrderEntity).createQueryBuilder("orders")
@@ -54,7 +55,7 @@ export class AdminProductsController {
       }
       const { revision: _revision, published, ...fields } = input;
       const productId = previous?.id || randomUUID();
-      const data: Product = { ...previous?.data, ...fields, oldPrice: input.oldPrice ?? undefined, id: productId, image: input.gallery[0] || "", stock: previous?.data.stock || 0 };
+      const data: Product = { ...previous?.data, ...fields, ...pricing, id: productId, image: input.gallery[0] || "", stock: previous?.data.stock || 0 };
       if (published) assertPublishable(data);
       const row = await repository.save(repository.create({ ...previous, id: productId, slug: input.slug, published, data }));
       await manager.getRepository(AuditEntity).save({ actorId: user.id, action: previous ? "product-update" : "product-create", resourceId: row.id, detail: { published, code: data.code, revision: row.revision } });

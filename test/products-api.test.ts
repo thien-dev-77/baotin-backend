@@ -142,6 +142,11 @@ test("Product management with isolated database and media", { timeout: 120000 },
       const cleared = await patch({});
       assert.equal(cleared.status, 200); revision = cleared.data.product.revision;
       assert.equal(cleared.data.product.oldPrice, undefined);
+      const restored = await patch({ oldPrice: 150000 });
+      assert.equal(restored.status, 200); revision = restored.data.product.revision;
+      const clearedNull = await patch({ oldPrice: null });
+      assert.equal(clearedNull.status, 200); revision = clearedNull.data.product.revision;
+      assert.equal(clearedNull.data.product.oldPrice, undefined);
     });
     await t.test("Protect inventory and identities used in operations", async () => {
       await sql.query(`INSERT INTO "${schema}".inventory_balances (id,branch,"productId","onHand") VALUES ($1,$2,$3,9)`, [`Quy Nhơn:${id}`, "Quy Nhơn", id]);
@@ -153,6 +158,46 @@ test("Product management with isolated database and media", { timeout: 120000 },
       const audit = (await sql.query(`SELECT action FROM "${schema}".audit_events WHERE "resourceId"=$1`, [id])).rows;
       assert.ok(audit.some(row => row.action === "product-create"));
       assert.ok(audit.some(row => row.action === "product-update"));
+    });
+    await t.test("List-price pricing is server-authored, private for B2B and consistent in search/checkout", async () => {
+      const body = { ...draft, code: `${draft.code}-pricing`, slug: `${draft.slug}-pricing`, gallery, specification: "QA pricing", published: true, listPrice: 100000, b2cDiscount: 20, b2bDiscount: 35, price: 1 };
+      const created = await admin.call("/admin/products", "POST", body);
+      assert.equal(created.status, 201, JSON.stringify(created.data));
+      const pricedId = created.data.id;
+      assert.equal(created.data.product.price, 80000); assert.equal(created.data.product.oldPrice, 100000); assert.equal(created.data.product.b2bDiscount, 35);
+      await sql.query(`INSERT INTO "${schema}".inventory_balances (id,branch,"productId","onHand") VALUES ($1,$2,$3,10)`, [`Quy Nhơn:${pricedId}`, "Quy Nhơn", pricedId]);
+      await sql.query(`DELETE FROM "${schema}".price_policies`);
+      const guestProduct = (await guest.call(`/catalog/${body.slug}`)).data;
+      assert.equal(guestProduct.price, 80000); assert.equal(guestProduct.listPrice, 100000); assert.equal(guestProduct.b2cDiscount, 20);
+      assert.equal(guestProduct.b2bDiscount, undefined); assert.equal(guestProduct.customerPrice, undefined);
+      const selection = `/catalog/selection?ids=${pricedId}`;
+      assert.equal((await b2b.call(selection)).data.products[0].customerPrice, 65000);
+      assert.equal((await guest.call(selection)).data.products[0].b2bDiscount, undefined);
+      const quote = { items: [{ productId: pricedId, quantity: 1 }], delivery: "Nhận tại cửa hàng", coupon: "" };
+      assert.equal((await guest.call("/orders/quote", "POST", quote)).data.items[0].unitPrice, 80000);
+      assert.equal((await b2b.call("/orders/quote", "POST", quote)).data.items[0].unitPrice, 65000);
+      const search = `/catalog/search?${new URLSearchParams({ q: body.code, max: "66000", sort: "low" })}`;
+      assert.equal((await b2b.call(search)).data.products[0].customerPrice, 65000);
+      assert.equal((await guest.call(search)).data.total, 0);
+      const state = (await admin.call("/admin/state")).data;
+      const customer = state.customers.find((row: { id: string }) => row.id === "KH001");
+      const groupPolicy = await admin.call("/admin/pricing", "POST", { branch: "Quy Nhơn", name: "QA list-price group", scope: "group", target: customer.group, discount: 10, prices: {}, startsOn: "2000-01-01", endsOn: null, active: true });
+      assert.equal(groupPolicy.status, 201, JSON.stringify(groupPolicy.data));
+      assert.equal((await b2b.call(selection)).data.products[0].customerPrice, 90000);
+      assert.equal((await b2b.call("/orders/quote", "POST", quote)).data.items[0].unitPrice, 90000);
+      assert.equal((await b2b.call(search)).data.total, 0);
+      const specific = await admin.call("/admin/pricing", "POST", { branch: "Quy Nhơn", name: "QA SKU override", scope: "customer", target: "KH001", discount: 0, prices: { [pricedId]: 55000 }, startsOn: "2000-01-01", endsOn: null, active: true });
+      assert.equal(specific.status, 201);
+      assert.equal((await b2b.call("/orders/quote", "POST", quote)).data.items[0].unitPrice, 55000);
+      assert.equal((await guest.call("/orders/quote", "POST", quote)).data.items[0].unitPrice, 80000);
+      const warehouseProduct = (await warehouse.call("/admin/resources?branch=Quy+Nh%C6%A1n&include=products")).data.products.find((row: { id: string }) => row.id === pricedId);
+      for (const key of ["listPrice", "b2cDiscount", "b2bDiscount", "customerPrice", "oldPrice"]) assert.equal(warehouseProduct[key], undefined);
+      for (const change of [{ b2cDiscount: 100 }, { b2bDiscount: -1 }, { b2cDiscount: 0.001 }, { listPrice: 1.5 }, { b2bPrice: 1 }]) assert.equal((await admin.call(`/admin/products/${pricedId}`, "PATCH", { ...body, revision: created.data.product.revision, ...change })).status, 400, JSON.stringify(change));
+      const { b2bDiscount: _b2b, ...partial } = body;
+      assert.equal((await admin.call(`/admin/products/${pricedId}`, "PATCH", { ...partial, revision: created.data.product.revision })).status, 400);
+      const saved = await admin.call(`/admin/products/${pricedId}`, "PATCH", { ...body, revision: created.data.product.revision, b2cDiscount: 12.34 });
+      assert.equal(saved.status, 200); assert.equal(saved.data.product.price, 87660);
+      assert.equal((await admin.call(`/admin/products/${pricedId}`, "PATCH", { ...body, revision: created.data.product.revision })).status, 409);
     });
   } finally {
     if (child.exitCode === null) { child.kill("SIGTERM"); await once(child, "exit"); }

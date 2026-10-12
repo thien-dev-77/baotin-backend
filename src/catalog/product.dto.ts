@@ -1,5 +1,6 @@
 import { Transform } from "class-transformer";
-import { ArrayMaxSize, ArrayUnique, IsArray, IsBoolean, IsInt, IsOptional, IsString, Length, Matches, Max, MaxLength, Min } from "class-validator";
+import { ArrayMaxSize, ArrayUnique, IsArray, IsBoolean, IsInt, IsNumber, IsOptional, IsString, Length, Matches, Max, MaxLength, Min } from "class-validator";
+import { MAX_PRODUCT_PRICE, MAX_PRODUCT_DISCOUNT } from "./product-pricing";
 
 const trim = Transform(({ value }) => typeof value === "string" ? value.trim() : value);
 export const productImagePattern = /^\/(?:images|media\/(?:images|uploads))\/[a-zA-Z0-9/_-]+\.(?:jpe?g|png|webp)$/;
@@ -13,7 +14,10 @@ export class ProductDto {
   @trim @IsString() @MaxLength(100) subcategory!: string;
   @trim @IsString() @Length(1, 80) brand!: string;
   @trim @IsString() @Length(1, 30) unit!: string;
-  @IsInt() @Min(0) @Max(999999999999) price!: number;
+  @IsOptional() @IsInt() @Min(0) @Max(MAX_PRODUCT_PRICE) price?: number;
+  @IsOptional() @IsInt() @Min(0) @Max(MAX_PRODUCT_PRICE) listPrice?: number;
+  @IsOptional() @IsNumber({ maxDecimalPlaces: 2 }) @Min(0) @Max(MAX_PRODUCT_DISCOUNT) b2cDiscount?: number;
+  @IsOptional() @IsNumber({ maxDecimalPlaces: 2 }) @Min(0) @Max(MAX_PRODUCT_DISCOUNT) b2bDiscount?: number;
   @IsOptional() @IsInt() @Min(0) @Max(999999999999) oldPrice?: number;
   @trim @IsString() @MaxLength(500) specification!: string;
   @trim @IsString() @MaxLength(100) material!: string;

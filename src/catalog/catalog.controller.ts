@@ -7,6 +7,7 @@ import { LedgerService } from "../ledger/ledger.service";
 import { orderedCategories } from "./category.rules";
 import { CatalogQueryService } from "./catalog-query.service";
 import { CatalogQueryDto, CatalogSelectionDto } from "./catalog-query.dto";
+import { publicProduct } from "./product-pricing";
 
 @Controller("catalog")
 export class CatalogController {
@@ -33,6 +34,6 @@ export class CatalogController {
   @Get(["product/:slug", ":slug"]) async product(@Param("slug") slug: string) {
     const row = await this.db.source.getRepository(ProductEntity).findOne({ where: [{ slug, published: true }, { id: slug, published: true }] });
     if (!row) throw new NotFoundException("Không tìm thấy sản phẩm.");
-    return (await this.ledger.stock([row.data], "Quy Nhơn"))[0];
+    return publicProduct((await this.ledger.stock([row.data], "Quy Nhơn"))[0]);
   }
 }

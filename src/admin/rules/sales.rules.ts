@@ -20,7 +20,7 @@ export function blankSalesDraft(order?: AdminOrder): SalesDraft {
   };
 }
 
-function readDetails(value: unknown): SalesDetails | null {
+export function readSalesDetails(value: unknown): SalesDetails | null {
   if (!value || typeof value !== "object") return null;
   const data = value as SalesDetails;
   if (![data.recipient, data.phone, data.address, data.note].every((item) => typeof item === "string") || !salesDeliveries.includes(data.delivery) || !salesPayments.includes(data.payment)) return null;
@@ -29,28 +29,36 @@ function readDetails(value: unknown): SalesDetails | null {
   return details;
 }
 
-export function draftItems(draft: SalesDraft, customer: AdminCustomer | undefined, products: Product[], previous?: AdminOrder) {
+export function draftItems(draft: Pick<SalesDraft, "items">, customer: AdminCustomer | undefined, products: Product[], previous?: AdminOrder) {
   return draft.items.map((line) => ({ ...line, unitPrice: previous?.items.find((item) => item.productId === line.productId)?.unitPrice ?? salesUnitPrice(products.find((product) => product.id === line.productId)!, customer) }));
 }
 
-export function validateSalesDraft(draft: SalesDraft, branch: Branch, customers: AdminCustomer[], products: Product[], previous?: AdminOrder): { error?: string; data?: SalesOrderData } {
+type PricingDraft = Pick<SalesDraft, "customerId" | "source" | "items"> & { details: Pick<SalesDetails, "delivery" | "payment"> };
+export function validateSalesPricing(draft: PricingDraft, branch: Branch, customers: AdminCustomer[], products: Product[], previous?: AdminOrder): { error?: string; data?: Pick<SalesOrderData, "items" | "total" | "credit"> } {
   const customer = customers.find((item) => item.id === draft.customerId);
   if (draft.customerId && (!customer || customer.branch !== branch || customer.status !== "Đang hoạt động")) return { error: "Chọn khách B2B đang hoạt động tại chi nhánh này." };
   if (!previous && !salesSources.some((source) => source === draft.source)) return { error: "Chọn nguồn đơn hợp lệ." };
-  const details = readDetails(draft.details);
-  if (!details) return { error: "Kiểm tra người nhận, số điện thoại và địa chỉ giao hàng." };
+  const details = draft.details;
+  if (!salesDeliveries.includes(details.delivery) || !salesPayments.includes(details.payment)) return { error: "Chọn giao hàng và thanh toán hợp lệ." };
   if (!customer && !["Giao nội thành", "Nhận tại cửa hàng"].includes(details.delivery)) return { error: "Khách B2C nhận tại cửa hàng hoặc giao nội thành." };
   if (details.payment === "Công nợ B2B" && (!customer || customer.limit <= 0)) return { error: "Khách chưa có hạn mức công nợ. Chọn tiền mặt hoặc chuyển khoản." };
   if (!draft.items.length || draft.items.length > products.length || new Set(draft.items.map((item) => item.productId)).size !== draft.items.length || draft.items.some((line) => !products.some((product) => product.id === line.productId) || !Number.isInteger(line.quantity) || line.quantity < 1 || line.quantity > 999)) return { error: "Thêm ít nhất một SKU với số lượng từ 1 đến 999." };
   const items = draftItems(draft, customer, products, previous);
-  return { data: { details, items, total: items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0), credit: details.payment === "Công nợ B2B" } };
+  return { data: { items, total: items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0), credit: details.payment === "Công nợ B2B" } };
+}
+
+export function validateSalesDraft(draft: SalesDraft, branch: Branch, customers: AdminCustomer[], products: Product[], previous?: AdminOrder): { error?: string; data?: SalesOrderData } {
+  const details = readSalesDetails(draft.details);
+  if (!details) return { error: "Kiểm tra người nhận, số điện thoại và địa chỉ giao hàng." };
+  const result = validateSalesPricing(draft, branch, customers, products, previous);
+  return result.data ? { data: { ...result.data, details } } : { error: result.error };
 }
 
 // Rehydrate only known SKU and price snapshots; browser totals and extra fields are ignored.
 export function readSalesData(value: unknown, customer: AdminCustomer | undefined, products: Product[], previous?: AdminOrder): SalesOrderData | null {
   if (!value || typeof value !== "object") return null;
   const raw = value as SalesOrderData;
-  const details = readDetails(raw.details);
+  const details = readSalesDetails(raw.details);
   if (!details || (!customer && (details.payment === "Công nợ B2B" || !["Giao nội thành", "Nhận tại cửa hàng"].includes(details.delivery))) || !Array.isArray(raw.items) || !raw.items.length || raw.items.length > products.length) return null;
   const items: AdminOrder["items"] = [];
   for (const line of raw.items) {

@@ -16,6 +16,7 @@ import { CustomerEntity } from "../dist/database/entities";
 import {
   CreditEntity,
   InventoryEntity,
+  IntegrationRunEntity,
   LedgerEntity,
 } from "../dist/database/operations.entities";
 import type { AdminOrder } from "../src/types/domain.types";
@@ -917,6 +918,25 @@ test(
               service.exportOrder(adminUser, branch, order.id, 1),
             );
             assert.equal(requests, 1);
+            const productRepo = source.getRepository(ProductEntity);
+            const currentProduct = await productRepo.findOneByOrFail({ id: productId });
+            currentProduct.data = { ...currentProduct.data, listPrice: 100000, b2cDiscount: 20, b2bDiscount: 35, price: 80000, oldPrice: 100000 };
+            await productRepo.save(currentProduct);
+            const runs = source.getRepository(IntegrationRunEntity);
+            const remoteProduct = { id: 789, code: currentProduct.data.code, unit: currentProduct.data.unit, basePrice: 79000, isActive: true, allowsSale: true };
+            const run = await runs.save(runs.create({ actorId: adminUser.id, status: "completed", detail: { branch, products: [remoteProduct] } }));
+            await assert.rejects(service.applyPrices(adminUser, branch, run.id), /giá niêm yết và chiết khấu/);
+            const unchanged = await productRepo.findOneByOrFail({ id: productId });
+            assert.equal(unchanged.data.price, 80000);
+            assert.equal(unchanged.data.b2bDiscount, 35);
+            run.detail = { branch, products: [{ ...remoteProduct, basePrice: 80000, allowsSale: false }] };
+            await runs.save(run);
+            assert.equal((await service.applyPrices(adminUser, branch, run.id)).updated, 1);
+            const matching = await productRepo.findOneByOrFail({ id: productId });
+            assert.equal(matching.published, false);
+            assert.equal(matching.data.listPrice, 100000);
+            assert.equal(matching.data.b2cDiscount, 20);
+            assert.equal(matching.data.b2bDiscount, 35);
             process.env.KIOTVIET_BRANCH_MAP = JSON.stringify({ [branch]: 12 });
             assert.equal(
               (await service.reconcile(adminUser, branch, order.id)).externalId,

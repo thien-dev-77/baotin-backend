@@ -39,7 +39,21 @@ export class SalesDto {
   @IsOptional() @IsString() @MaxLength(500) reason?: string;
   @IsOptional() @IsInt() @Min(0) expectedTotal?: number;
 }
-export class SalesQuoteDto extends SalesDto {
+export class QuoteDetailsDto {
+  @IsIn(salesDeliveries) delivery!: typeof salesDeliveries[number];
+  @IsIn(salesPayments) payment!: typeof salesPayments[number];
+  @IsOptional() @IsString() @MaxLength(100) recipient?: string;
+  @IsOptional() @IsString() @MaxLength(25) phone?: string;
+  @IsOptional() @IsString() @MaxLength(300) address?: string;
+  @IsOptional() @IsString() @MaxLength(500) note?: string;
+}
+export class SalesQuoteDto {
+  @IsString() @MaxLength(100) customerId!: string;
+  @IsString() @Length(1, 100) source!: string;
+  @IsArray() @ArrayMinSize(1) @ArrayMaxSize(100) @ValidateNested({ each: true }) @Type(() => ItemDto) items!: ItemDto[];
+  @IsDefined() @ValidateNested() @Type(() => QuoteDetailsDto) details!: QuoteDetailsDto;
+  @IsOptional() @IsString() @MaxLength(500) reason?: string;
+  @IsOptional() @IsInt() @Min(0) expectedTotal?: number;
   @IsIn(branches) branch!: typeof branches[number];
   @IsOptional() @IsString() @Length(1, 100) id?: string;
 }

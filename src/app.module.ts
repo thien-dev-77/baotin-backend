@@ -12,6 +12,9 @@ import { OrdersController } from "./orders/orders.controller";
 import { OrdersService } from "./orders/orders.service";
 import { AdminController } from "./admin/admin.controller";
 import { AdminService } from "./admin/admin.service";
+import { AdminBrowseController } from "./admin/admin-browse.controller";
+import { AdminBrowseService } from "./admin/admin-browse.service";
+import { AdminDashboardService } from "./admin/admin-dashboard.service";
 import { AccountController } from "./account/account.controller";
 import { MediaController } from "./media/media.controller";
 import { HealthController } from "./health.controller";
@@ -43,7 +46,7 @@ import { AdminCategoriesController, CategoriesController } from "./catalog/categ
     if (!secret || secret.length < 32 || secret.startsWith("replace-")) throw new Error("JWT_SECRET must contain at least 32 random characters.");
     return { secret };
   } }), ThrottlerModule.forRoot([{ ttl: 60000, limit: 240 }])],
-  controllers: [AuthController, CatalogController, CategoriesController, AdminCategoriesController, OrdersController, AdminController, AccountController, CustomersController, MediaController, HealthController, ContactController, PricePolicyController, LedgerController, UserManagementController, KiotController, AdminProductsController, NotificationsController, CustomerActionsController, PublicContentController, AdminContentController, ReviewsController, AdminReviewsController, DocumentsController, ReportsController],
-  providers: [DatabaseService, SeedService, AuthService, CatalogQueryService, OrdersService, AdminService, PricePolicyService, LedgerService, PasswordRecoveryService, KiotClient, KiotService, KiotReconciliationService, NotificationsService, { provide: APP_GUARD, useClass: ThrottlerGuard }]
+  controllers: [AuthController, CatalogController, CategoriesController, AdminCategoriesController, OrdersController, AdminController, AdminBrowseController, AccountController, CustomersController, MediaController, HealthController, ContactController, PricePolicyController, LedgerController, UserManagementController, KiotController, AdminProductsController, NotificationsController, CustomerActionsController, PublicContentController, AdminContentController, ReviewsController, AdminReviewsController, DocumentsController, ReportsController],
+  providers: [DatabaseService, SeedService, AuthService, CatalogQueryService, OrdersService, AdminService, AdminBrowseService, AdminDashboardService, PricePolicyService, LedgerService, PasswordRecoveryService, KiotClient, KiotService, KiotReconciliationService, NotificationsService, { provide: APP_GUARD, useClass: ThrottlerGuard }]
 })
 export class AppModule {}

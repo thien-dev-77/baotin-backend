@@ -8,11 +8,13 @@ import { config } from "dotenv";
 import { Client } from "pg";
 import { DataSource } from "typeorm";
 import { DatabaseService } from "../dist/database/database.service";
-import { entities, UserEntity } from "../dist/database/entities";
+import { entities, UserEntity, ProductEntity, OrderEntity, ApprovalEntity } from "../dist/database/entities";
 import { AdminService } from "../dist/admin/admin.service";
 import { LedgerService } from "../dist/ledger/ledger.service";
 import { PricePolicyService } from "../dist/catalog/price-policy.service";
 import { NotificationsService } from "../dist/notifications/notifications.service";
+import { AdminBrowseService } from "../dist/admin/admin-browse.service";
+import { businessDate } from "../dist/orders/orders.service";
 
 config({ path: ".env.local", quiet: true });
 if (!process.env.DATABASE_URL || new URL(process.env.DATABASE_URL).hostname !== "127.0.0.1") throw new Error("Admin resource QA only targets local PostgreSQL.");
@@ -98,9 +100,133 @@ test("Scoped admin resources and compact commands", { timeout: 120000 }, async t
       const legacy = await admin.call("/admin/commands", "POST", { action: "customer-status", branch: before.branch, id: before.id, payload: { status: "Đang hoạt động", revision: after.revision } });
       assert.equal(legacy.status, 201); assert.ok(legacy.data.state.products.length > 0);
     });
+    const browsePath = (resource: string, values: Record<string, string> = {}) => `/admin/browse?${new URLSearchParams({ resource, branch: "Quy Nhơn", ...values })}`;
+    await t.test("Browse validates queries, branch grants and financial redaction", async () => {
+      assert.equal((await guest.call(browsePath("products"))).status, 401);
+      assert.equal((await b2b.call(browsePath("products"))).status, 403);
+      assert.equal((await sales.call(browsePath("orders", { branch: "Tuy Hòa" }))).status, 403);
+      for (const query of [{ page: "0" }, { pageSize: "1000" }, { from: "2026-99-01" }, { from: "2026-10-12", to: "2026-10-01" }, { unexpected: "1" }]) assert.equal((await admin.call(browsePath("orders", query))).status, 400);
+      const result = await warehouse.call(browsePath("orders"));
+      assert.equal(result.status, 200, JSON.stringify(result.data));
+      assert.ok(result.data.orders.every((row: { total: number }) => row.total === 0));
+      assert.equal((await warehouse.call(browsePath("customers"))).status, 403);
+      assert.equal((await warehouse.call(`/admin/dashboard?${new URLSearchParams({ branch: "Quy Nhơn" })}`)).status, 403);
+    });
+    await t.test("Product pages are SQL bounded, searchable without accents and stable", async () => {
+      const sample = await db.source.getRepository(ProductEntity).findOneByOrFail({ id: "LED-12V-8W" });
+      await db.source.getRepository(ProductEntity).insert(Array.from({ length: 55 }, (_, index) => ({ id: `browse-qa-${index}`, slug: `browse-qa-${index}`, data: { ...sample.data, id: `browse-qa-${index}`, code: `BROWSE-${index}`, name: `Sản phẩm phân trang QA ${String(index).padStart(3, "0")}` }, published: index % 2 === 0 })));
+      const first = await admin.call(browsePath("products", { q: "san pham phan trang QA", pageSize: "10" }));
+      const second = await admin.call(browsePath("products", { q: "san pham phan trang QA", page: "2", pageSize: "10" }));
+      assert.equal(first.status, 200, JSON.stringify(first.data));
+      assert.equal(first.data.pagination.total, 55); assert.equal(first.data.products.length, 10);
+      assert.equal(second.data.products.length, 10);
+      assert.ok(!second.data.products.some((row: { id: string }) => first.data.products.some((item: { id: string }) => item.id === row.id)));
+      assert.equal((await admin.call(browsePath("products", { q: "BROWSE-54", status: "published" }))).data.pagination.total, 1);
+      const browse = new AdminBrowseService(db, new LedgerService(db));
+      queries.length = 0;
+      await browse.browse(user, { resource: "products", branch: "Quy Nhơn", page: 1, pageSize: 10 });
+      assert.ok(queries.some(query => /FROM .*products.*LIMIT 10/.test(query)), queries.join("\n"));
+      assert.ok(!queries.some(query => query.includes('"customers"')));
+    });
+    await t.test("All-time order search and targeted details include pending orders older than 90 days", async () => {
+      const repository = db.source.getRepository(OrderEntity);
+      const sample = (await repository.find())[0];
+      await repository.insert({ id: "QA-OLD-90", branch: "Quy Nhơn", customerId: sample.customerId, data: { ...sample.data, id: "QA-OLD-90", branch: "Quy Nhơn", date: "2026-01-01", status: "Chờ xác nhận" }, warehouse: { checks: {}, history: [] } });
+      const all = await admin.call(browsePath("orders", { q: "QA-OLD-90" }));
+      assert.equal(all.status, 200, JSON.stringify(all.data)); assert.equal(all.data.orders[0].id, "QA-OLD-90");
+      assert.equal((await admin.call(browsePath("orders", { q: "QA-OLD-90", from: "2026-10-01" }))).data.pagination.total, 0);
+      const detail = await admin.call(`/admin/orders/QA-OLD-90?${new URLSearchParams({ branch: "Quy Nhơn" })}`);
+      assert.equal(detail.status, 200, JSON.stringify(detail.data)); assert.equal(detail.data.orders.length, 1);
+      assert.ok(detail.data.products.length <= sample.data.items.length);
+      assert.equal((await admin.call(`/admin/orders/QA-OLD-90?${new URLSearchParams({ branch: "Tuy Hòa" })}`)).status, 404);
+      assert.equal((await warehouse.call(`/admin/orders/QA-OLD-90?${new URLSearchParams({ branch: "Quy Nhơn" })}`)).status, 404);
+    });
+    await t.test("Warehouse search retains SKU lookup and counts the whole branch", async () => {
+      const legacy = (await warehouse.call(resourcePath("orders"))).data.orders;
+      const first = legacy[0];
+      const product = await db.source.getRepository(ProductEntity).findOneByOrFail({ id: first.items[0].productId });
+      const response = await warehouse.call(browsePath("warehouse", { q: product.data.code }));
+      assert.equal(response.status, 200, JSON.stringify(response.data));
+      assert.ok(response.data.orders.some((order: { id: string }) => order.id === first.id));
+      assert.equal(response.data.warehouseSummary.total, legacy.length);
+      assert.equal(response.data.warehouseSummary.waiting + response.data.warehouseSummary.picking + response.data.warehouseSummary.ready, legacy.length);
+      assert.ok(response.data.orders.every((order: { total: number }) => order.total === 0));
+    });
+    await t.test("Customer pages combine directory and authoritative finance without duplicate list reads", async () => {
+      const legacy = (await admin.call(resourcePath("customers"))).data.customers;
+      for (const status of ["all", "overdue", "overlimit"]) {
+        const response = await admin.call(browsePath("customers", { status }));
+        assert.equal(response.status, 200, JSON.stringify(response.data));
+        assert.ok(response.data.customers.length <= 10);
+        for (const customer of response.data.customers) {
+          const existing = legacy.find((row: { id: string }) => row.id === customer.id);
+          assert.equal(customer.debt, existing.debt); assert.equal(customer.overdue, existing.overdue);
+          assert.equal(typeof customer.revision, "number");
+          if (status === "overdue") assert.ok(customer.overdue > 0);
+          if (status === "overlimit") assert.ok(customer.debt > customer.limit);
+        }
+        assert.deepEqual(response.data.directory.items, response.data.customers);
+        assert.ok(response.data.directory.assignees.every((row: { name: string }) => typeof row.name === "string"));
+      }
+    });
+    await t.test("Dashboard returns summaries and at most five recent orders, with all-time pending queues", async () => {
+      const legacy = (await admin.call(resourcePath("orders,customers,approvals"))).data;
+      const response = await admin.call(`/admin/dashboard?${new URLSearchParams({ branch: "Quy Nhơn", days: "90" })}`);
+      assert.equal(response.status, 200, JSON.stringify(response.data));
+      assert.equal(response.data.today, businessDate());
+      assert.ok(response.data.recentOrders.length <= 5);
+      assert.equal(response.data.products, undefined); assert.equal(response.data.customers, undefined);
+      assert.equal(response.data.metrics.pendingOrders, legacy.orders.filter((row: { status: string }) => row.status === "Chờ xác nhận").length);
+      assert.equal(response.data.metrics.debt, legacy.customers.reduce((sum: number, row: { debt: number }) => sum + row.debt, 0));
+      const period = legacy.orders.filter((row: { date: string; status: string }) => row.date.slice(0, 10) >= response.data.since && row.date.slice(0, 10) <= response.data.today && row.status !== "Đã hủy");
+      assert.equal(response.data.metrics.total, period.reduce((sum: number, row: { total: number }) => sum + row.total, 0));
+      assert.equal(response.data.periods[0].start, response.data.since);
+      assert.equal(response.data.periods.at(-1).end, response.data.today);
+      assert.equal(response.data.periods.reduce((sum: number, row: { value: number }) => sum + row.value, 0), response.data.metrics.total);
+    });
+    await t.test("Dashboard SQL matches approved price snapshots, stale approvals and website coupons", async () => {
+      const orders = db.source.getRepository(OrderEntity), approvals = db.source.getRepository(ApprovalEntity);
+      const sample = await orders.findOneByOrFail({ branch: "Quy Nhơn", customerId: "KH001" });
+      const id = "QA-DASHBOARD-PRICE";
+      const data = { ...sample.data, id, date: businessDate(), status: "Chờ xác nhận" as const };
+      const row = await orders.save(orders.create({ ...sample, id, checkout: null, data }));
+      const lines = data.items.map(line => ({ ...line, requestedPrice: Math.max(1, Math.floor(line.unitPrice * 0.8)) }));
+      const discounted = lines.reduce((sum, line) => sum + line.quantity * line.requestedPrice, 0);
+      const approval = await approvals.save(approvals.create({ id: "QA-DASHBOARD-APPROVAL", branch: row.branch, data: { id: "QA-DASHBOARD-APPROVAL", orderId: id, customerId: "KH001", branch: row.branch, type: "Giá đặc biệt", status: "Đã duyệt", requestedBy: "QA", reason: "Disposable fixture", createdAt: new Date().toISOString(), snapshot: { kind: "price", lines, total: data.total, requestedTotal: discounted } } }));
+      const summary = async () => {
+        const response = await admin.call("/admin/dashboard?branch=Quy+Nh%C6%A1n&days=7");
+        assert.equal(response.status, 200, JSON.stringify(response.data));
+        const legacy = (await admin.call(resourcePath("orders,approvals"))).data.orders;
+        const expected = legacy.filter((order: { date: string; status: string }) => order.date >= response.data.since && order.date <= response.data.today && order.status !== "Đã hủy").reduce((sum: number, order: { total: number }) => sum + order.total, 0);
+        assert.equal(response.data.metrics.total, expected);
+        return (await admin.call(`/admin/orders/${id}?branch=Quy+Nh%C6%A1n`)).data.orders[0].total;
+      };
+      assert.equal(await summary(), discounted);
+      row.checkout = { id, customerId: "KH001", date: data.date, status: "Chờ xác nhận", b2b: true, items: data.items, subtotal: data.total, shipping: 30000, discount: 1, coupon: "BAOTIN10", total: data.total, customer: { name: "QA", phone: "0901234567", email: "", address: "QA", city: "", district: "", ward: "" }, delivery: "Giao nội thành", payment: "Tiền mặt", note: "" };
+      await orders.save(row);
+      assert.equal(await summary(), discounted + 30000 - Math.min(100000, Math.round(discounted * 0.1)));
+      if (approval.data.snapshot?.kind === "price") approval.data.snapshot.lines[0].quantity++;
+      await approvals.save(approval);
+      const retail = data.items.reduce((sum, line) => sum + line.quantity * line.unitPrice, 0);
+      assert.equal(await summary(), retail + 30000 - Math.min(100000, Math.round(retail * 0.1)));
+      await approvals.delete(approval.id); await orders.delete(id);
+    });
+    await t.test("Quotes accept pricing-only fields but saving still requires valid contact details", async () => {
+      const product = (await admin.call(browsePath("products"))).data.products.find((product: { published: boolean }) => product.published);
+      const draft = { branch: "Quy Nhơn", customerId: "", source: "Zalo", items: [{ productId: product.id, quantity: 2 }], details: { delivery: "Nhận tại cửa hàng", payment: "Chuyển khoản" } };
+      const quote = await sales.call("/admin/orders/quote", "POST", draft);
+      assert.equal(quote.status, 201, JSON.stringify(quote.data));
+      assert.equal(quote.data.total, product.price * 2);
+      assert.equal((await warehouse.call("/admin/orders/quote", "POST", draft)).status, 403);
+      const { branch, ...payload } = draft;
+      assert.equal((await admin.call("/admin/commands", "POST", { action: "save-order", branch, payload, returnState: false })).status, 400);
+      assert.equal((await admin.call("/admin/commands", "POST", { action: "save-order", branch, payload: { ...payload, details: { ...payload.details, recipient: "QA", phone: "abcdefghi", address: "", note: "" } }, returnState: false })).status, 400);
+      assert.equal((await admin.call("/admin/orders/quote", "POST", { ...draft, details: { ...draft.details, payment: "Công nợ B2B" } })).status, 400);
+      assert.equal((await admin.call("/admin/orders/quote", "POST", { ...draft, items: [...draft.items, ...draft.items] })).status, 400);
+    });
     await t.test("Measure full state versus scoped payloads on local fixtures", async () => {
       const measurements: { endpoint: string; ms: number; bytes: number }[] = [];
-      for (const endpoint of ["/admin/state", resourcePath("orders,customers,approvals"), resourcePath("products,categories")]) {
+      for (const endpoint of ["/admin/state", browsePath("orders"), browsePath("products"), browsePath("customers"), "/admin/dashboard?branch=Quy+Nh%C6%A1n&days=7"]) {
         const start = performance.now(); const response = await admin.call(endpoint);
         assert.equal(response.status, 200);
         measurements.push({ endpoint, ms: Math.round(performance.now() - start), bytes: Buffer.byteLength(JSON.stringify(response.data)) });

@@ -42,6 +42,7 @@ export class SessionEntity {
 @Entity("orders")
 @Index("orders_branch_idx", ["branch"])
 @Index("orders_customer_idx", ["customerId"])
+@Index("orders_branch_created_idx", ["branch", "createdAt", "id"])
 export class OrderEntity {
   @PrimaryColumn() id!: string;
   @Column() branch!: string;

@@ -7,7 +7,8 @@ import type { ApiAdminState } from "../types/api.types";
 import type { AdminOrder, StaffRole } from "../types/domain.types";
 import { orderStages } from "../types/domain.types";
 import { applyApprovedPrice, approvalDecisionBlocker, approvalRejectionBlocker, buildApprovalRequest, latestOrderApprovals } from "./rules/approval.rules";
-import { validateSalesDraft } from "./rules/sales.rules";
+import { readSalesDetails, validateSalesPricing } from "./rules/sales.rules";
+import { redactProductPricing } from "../catalog/product-pricing";
 import { appendWarehouseEvent, hasShortage, isPicked, isWarehouseOrder, warehouseBlocker } from "./rules/warehouse.rules";
 import { collectible, reconciliationBlocker, validAccountingDate, validateReceipt } from "./rules/accounting.rules";
 import { orderBlocker } from "./rules/order.rules";
@@ -92,7 +93,7 @@ export class AdminService {
     ]);
     if (redact && user.role === "warehouse") {
       if (result.orders) result.orders = result.orders.filter(isWarehouseOrder).map((order) => ({ ...order, total: 0, items: order.items.map((item) => ({ ...item, unitPrice: 0 })) }));
-      if (result.products) result.products = result.products.map((product) => ({ ...product, price: 0, oldPrice: undefined, customerPrice: undefined }));
+      if (result.products) result.products = result.products.map(redactProductPricing);
       if (result.customers) result.customers = result.customers.map((customer) => ({ id: customer.id, name: customer.name, contact: customer.contact, phone: customer.phone, group: customer.group, branch: customer.branch, status: customer.status, limit: 0, debt: 0, overdue: 0, creditReserved: 0 }));
       if (result.approvals) result.approvals = [];
       if (result.receipts) result.receipts = [];
@@ -105,17 +106,18 @@ export class AdminService {
     const previous = input.id ? await manager.getRepository(OrderEntity).findOneBy({ id: input.id, branch: input.branch }) : null;
     if (input.id && (!previous || previous.data.status !== "Chờ xác nhận")) throw new ConflictException("Đơn không còn chờ xác nhận.");
     if (previous && (previous.customerId !== (input.customerId || null) || previous.data.source !== input.source)) throw new BadRequestException("Không được đổi khách hoặc nguồn đơn.");
-    const customers = (await manager.getRepository(CustomerEntity).find({ where: { branch: input.branch } })).map(row => row.data);
+    const customers = input.customerId ? (await manager.getRepository(CustomerEntity).find({ where: { id: input.customerId, branch: input.branch } })).map(row => row.data) : [];
     const customer = customers.find(row => row.id === input.customerId);
-    const products = await this.pricing.personalize(await this.ledger.stock((await manager.getRepository(ProductEntity).find({ where: { published: true } })).map(row => row.data), input.branch, manager), customer, manager);
+    const products = await this.pricing.personalize(await this.ledger.stock((await manager.getRepository(ProductEntity).find({ where: { id: In(input.items.map(item => item.productId)), published: true } })).map(row => row.data), input.branch, manager), customer, manager);
     // Website edits requote every line; Sales-only edits preserve their original price snapshots.
     const base = previous?.checkout ? { ...previous.data, items: [] } : previous?.data;
-    const result = validateSalesDraft(input, input.branch, customers, products, base);
+    const result = validateSalesPricing(input, input.branch, customers, products, base);
     if (!result.data) throw new BadRequestException(result.error);
-    const shipping = previous?.checkout ? shippingCost(result.data.details.delivery) : 0;
+    const shipping = previous?.checkout ? shippingCost(input.details.delivery) : 0;
     const discount = previous?.checkout?.coupon === "BAOTIN10" || previous?.checkout?.discount ? Math.min(100000, Math.round(result.data.total * 0.1)) : 0;
     if (!Number.isSafeInteger(result.data.total + shipping - discount) || result.data.total < 1) throw new BadRequestException("Giá trị đơn vượt giới hạn. Giảm số lượng hoặc liên hệ Sales.");
-    return { ...result.data, subtotal: result.data.total, shipping, discount, total: result.data.total + shipping - discount };
+    const details = { ...input.details, recipient: input.details.recipient?.trim() || "", phone: input.details.phone?.trim() || "", address: input.details.address?.trim() || "", note: input.details.note?.trim() || "" };
+    return { ...result.data, details, subtotal: result.data.total, shipping, discount, total: result.data.total + shipping - discount };
   }
   async command(user: UserEntity, command: AdminCommandDto) {
     this.assertStaff(user);
@@ -138,6 +140,7 @@ export class AdminService {
           const draft = input(SalesDto, command.payload);
           const previous = command.id ? await orderFor(command.id) : undefined;
           if (previous && (previous.order.status !== "Chờ xác nhận" || previous.order.approvalId || previous.order.customerId !== (draft.customerId || null) || previous.order.source !== draft.source || !draft.reason?.trim())) throw new ConflictException("Chỉ sửa đơn pending chưa có yêu cầu duyệt, cần giữ nguồn/khách và nhập lý do.");
+          if (!readSalesDetails(draft.details)) throw new BadRequestException("Kiểm tra người nhận, số điện thoại và địa chỉ giao hàng.");
           const data = await this.salesQuote(user, { ...draft, branch: command.branch, id: command.id }, manager);
           data.items = await captureOrderItems(manager, data.items, previous?.order.items);
           if ((previous?.row.checkout || draft.expectedTotal !== undefined) && draft.expectedTotal !== data.total) throw new ConflictException("Giá đã thay đổi. Cập nhật báo giá trước khi lưu.");

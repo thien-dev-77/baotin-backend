@@ -21,6 +21,7 @@ import {
 import { LedgerEntity } from "../database/operations.entities";
 import { branches } from "../types/domain.types";
 import { LedgerService } from "./ledger.service";
+import { redactProductPricing } from "../catalog/product-pricing";
 
 class AdjustmentDto {
   @IsIn(branches) branch!: (typeof branches)[number];
@@ -82,7 +83,7 @@ export class LedgerController {
     return {
       inventory: inventory.map(({ customerPrice: _price, ...product }) =>
         user.role === "warehouse"
-          ? { ...product, price: 0, oldPrice: undefined }
+          ? redactProductPricing(product)
           : product,
       ),
       customers,
