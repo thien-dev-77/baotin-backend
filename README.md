@@ -13,6 +13,28 @@ Ban cap nhat uu tien 1-6 va checklist staging:
 [Operations Rollout](docs/operations-rollout.md).
 Quan ly them/sua san pham, bo anh va che do rieng tu:
 [Product Management](docs/product-management.md).
+Gia niem yet, CK B2C/B2B va bao gia theo khach:
+[Product Pricing](docs/product-pricing.md).
+
+## Cap Nhat 12/10/2026
+
+Code moi duoc push len nhanh **develop** cua ca backend va frontend.
+Chon nhanh nay tren GitHub de xem README/code moi; chua merge vao main.
+
+- API them/sua san pham nhan `listPrice`, `b2cDiscount`, `b2bDiscount`
+  cung nhau. Backend tu tinh gia B2C va B2B doc lap tu gia niem yet,
+  khong tin gia sau CK gui tu trinh duyet. `b2bPrice` khong phai field ghi.
+- Bang gia khach > nhom > mac dinh chi nhanh > CK B2B mac dinh san pham.
+  Gia rieng theo SKU trong bang gia duoc chon uu tien hon phan tram CK.
+- San pham cu giu nguyen gia den khi sua cau hinh gia. Khong tu rewrite seed,
+  gia snapshot hay tong tien don hang da luu; cac field moi nam trong JSONB.
+- Catalog cong khai an `b2bDiscount` va `customerPrice`. Tai khoan kho khong
+  nhan cac field gia/CK moi. Tim kiem, loc gia va checkout dung chung quy tac gia.
+- Kiot khong tu ghi de cau hinh gia niem yet/CK khi gia remote khac gia B2C
+  da tinh; tra 409 de admin cap nhat cau hinh truoc khi dong bo.
+- `GET /api/admin/browse` phan trang theo resource/chi nhanh/bo loc;
+  `GET /api/admin/dashboard` tra tong hop gon. Command ho tro `returnState:false`,
+  frontend chi tai lai phan du lieu bi anh huong. `/admin/state` van giu tuong thich.
 
 ```txt
 src/      NestJS modules, types va business rules cua BE
@@ -27,7 +49,8 @@ package.json, tsconfig.json, .env.example, compose.yml
 
 Tat ca nam ngay tai goc repo, khong con folder backend/ trung gian.
 Runtime source chi nam trong src/: types o src/types/, rules o src/admin/rules/,
-pricing o src/catalog/pricing.ts. Khong phu thuoc source FE khi build/start.
+pricing o src/catalog/product-pricing.ts va src/catalog/price-policy.service.ts.
+Khong phu thuoc source FE khi build/start.
 Build output: dist/main.js. Yeu cau Node.js >=20.
 
 ## Chay API
@@ -72,8 +95,13 @@ private keys hay uploads. Chi dung `tsc` se KHONG dong goi cac runtime assets.
 Duong dan tuong doi tim asset o repo goc, neu khong co thi dung ban kem theo
 compiled runtime; khong phu thuoc working directory cua cloud.
 
-Cau hinh: framework NestJS, Node.js 22.x, branch main, root `./`, build
+Cau hinh: framework NestJS, Node.js 22.x, branch **develop**, root `./`, build
 `npm run build`, output directory `dist`, entry file `main.js`.
+Repository: `thien-dev-77/baotin-backend`. Deploy backend truoc frontend;
+ca hai can chay code develop moi de nhan/dung duoc cac field gia/CK.
+Commit README tren develop khong cap nhat deployment dang theo doi main.
+Neu server chua nhan code moi, kiem tra branch/commit trong deployment log,
+luu dung branch va redeploy tu commit moi. Main chua duoc merge trong dot nay.
 
 ```dotenv
 NODE_ENV=production
@@ -146,6 +174,9 @@ npm run typecheck
 npm test
 npm run test:operations
 npm run test:experience
+npm run test:products
+npm run test:catalog
+npm run test:admin-resources
 ```
 
 `npm run test:api` ghi/xoa du lieu kiem thu: chi chay voi PostgreSQL local va
