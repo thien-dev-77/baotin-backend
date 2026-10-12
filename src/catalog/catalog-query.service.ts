@@ -8,6 +8,7 @@ import { effectivePolicyPrice, PricePolicyService, selectPricePolicy, today } fr
 import { orderedCategories } from "./category.rules";
 import type { CatalogQueryDto, CatalogSelectionDto } from "./catalog-query.dto";
 import { publicProduct, retailPrice, retailProjection, type PricingProduct } from "./product-pricing";
+import { groupRepresentatives } from "./product-variants";
 
 const facetFields = ["brand", "material", "color", "size", "origin"] as const;
 const accents = "àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ";
@@ -15,7 +16,7 @@ const plain = Array.from(accents, char => char === "đ" ? "d" : char.normalize("
 export const normalizeSearch = (text: string) => text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d").replace(/Đ/g, "D").toLowerCase();
 const sqlSearch = `lower(translate(normalize(concat_ws(' ', p.data->>'name', p.data->>'code', p.data->>'brand', p.data->>'specification'), NFC), '${accents}${accents.toUpperCase()}', '${plain}${plain.toUpperCase()}'))`;
 const escapeLike = (value: string) => value.replace(/[\\%_]/g, "\\$&");
-type Candidate = PricingProduct & { id: string; stock: number; featured: boolean; createdAt: Date };
+type Candidate = PricingProduct & { id: string; variantGroupId?: string; stock: number; featured: boolean; createdAt: Date };
 
 @Injectable()
 export class CatalogQueryService {
@@ -60,7 +61,7 @@ export class CatalogQueryService {
     ]);
     const ids = Array.from(new Set(batches.flat().map(row => row.id)));
     const { products } = await this.selection({ ids }, user);
-    return { products, ...metadata };
+    return { products: groupRepresentatives(products), ...metadata };
   }
 
   async search(input: CatalogQueryDto, user?: UserEntity) {
@@ -78,6 +79,7 @@ export class CatalogQueryService {
     // Rank lightweight rows, not full galleries/descriptions. Derived price and
     // available stock reuse the same policies/reservations as checkout.
     query.select("p.id", "id").addSelect("(p.data->>'price')::numeric", "price")
+      .addSelect("p.data->>'variantGroupId'", "variantGroupId")
       .addSelect("(p.data->>'listPrice')::numeric", "listPrice").addSelect("(p.data->>'b2cDiscount')::numeric", "b2cDiscount").addSelect("(p.data->>'b2bDiscount')::numeric", "b2bDiscount")
       .addSelect("(p.data->>'stock')::integer", "stock").addSelect("(p.data->>'featured')::boolean", "featured").addSelect("p.createdAt", "createdAt");
     const [raw, metadata, context] = await Promise.all([query.getRawMany<Candidate>(), this.metadata(), this.context(user)]);
@@ -85,13 +87,22 @@ export class CatalogQueryService {
     const candidates = await this.ledger.stock(raw.map(row => ({ ...row, price: Number(row.price), stock: Number(row.stock), listPrice: row.listPrice == null ? undefined : Number(row.listPrice), b2cDiscount: row.b2cDiscount == null ? undefined : Number(row.b2cDiscount), b2bDiscount: row.b2bDiscount == null ? undefined : Number(row.b2bDiscount) })), context.branch);
     const activeB2b = context.customer?.status === "Đang hoạt động";
     const price = (row: Candidate) => activeB2b ? effectivePolicyPrice(row, policy) : retailPrice(row);
-    const filtered = candidates.filter(row =>
+    const sorted = candidates.filter(row =>
       (input.min === undefined || price(row) >= input.min) && (input.max === undefined || price(row) <= input.max) &&
       (!input.stock?.length || input.stock.includes(row.stock > 0 ? "in" : "out")),
     ).sort((a, b) => {
       const difference = input.sort === "low" ? price(a) - price(b) : input.sort === "high" ? price(b) - price(a) :
         input.sort === "new" ? new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime() : Number(b.featured) - Number(a.featured);
-      return difference || a.id.localeCompare(b.id);
+      const rootPriority = input.sort === "low" || input.sort === "high" || input.sort === "new" ? 0 :
+        Number(Boolean(a.variantGroupId && a.id !== a.variantGroupId)) - Number(Boolean(b.variantGroupId && b.id !== b.variantGroupId));
+      return difference || rootPriority || a.id.localeCompare(b.id);
+    });
+    const seen = new Set<string>();
+    const filtered = sorted.filter(row => {
+      const key = row.variantGroupId || row.id;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
     });
     const total = filtered.length;
     const totalPages = Math.max(1, Math.ceil(total / input.pageSize));

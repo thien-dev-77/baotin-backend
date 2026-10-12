@@ -11,6 +11,7 @@ import type { Product } from "../types/domain.types";
 import { ProductDto } from "./product.dto";
 import { assertPublishable } from "./product.rules";
 import { resolveProductPricing } from "./product-pricing";
+import { validateVariantGroup, attributeKey, variantDimension } from "./product-variants";
 
 @Controller("admin/products")
 export class AdminProductsController {
@@ -55,7 +56,28 @@ export class AdminProductsController {
       }
       const { revision: _revision, published, ...fields } = input;
       const productId = previous?.id || randomUUID();
-      const data: Product = { ...previous?.data, ...fields, ...pricing, id: productId, image: input.gallery[0] || "", stock: previous?.data.stock || 0 };
+      const groupId = input.variantGroupId === "self" ? productId : input.variantGroupId ?? previous?.data.variantGroupId;
+      const attributes = input.variantAttributes ?? previous?.data.variantAttributes;
+      if (groupId && (!attributes?.length || (previous?.data.variantGroupId && previous.data.variantGroupId !== groupId))) {
+        throw new BadRequestException("Nhóm biến thể không hợp lệ hoặc không thể đổi nhóm đã tạo.");
+      }
+      if (!groupId && attributes?.length) throw new BadRequestException("Chọn nhóm sản phẩm trước khi thêm thuộc tính biến thể.");
+      if (groupId) {
+        const root = groupId === productId ? previous?.data : (await repository.findOneBy({ id: groupId }))?.data;
+        if (groupId !== productId && (!root || root.variantGroupId !== groupId)) throw new BadRequestException("Không tìm thấy sản phẩm gốc của nhóm biến thể.");
+        if (root && (root.category !== input.category || root.brand !== input.brand || root.unit !== input.unit)) throw new BadRequestException("Biến thể cần cùng danh mục, thương hiệu và đơn vị tính với sản phẩm gốc.");
+        // Lock the group anchor to serialize duplicate-combination checks.
+        if (groupId !== productId) await repository.createQueryBuilder("p").setLock("pessimistic_write").where("p.id = :groupId", { groupId }).getOne();
+        const siblings = await repository.createQueryBuilder("p").where("p.data->>'variantGroupId' = :groupId", { groupId }).getMany();
+        if (groupId === productId && siblings.length && previous?.data.variantAttributes?.some((item, index) => attributeKey(item.name) !== attributeKey(attributes![index]?.name || ""))) {
+          throw new BadRequestException("Nhóm đã có biến thể. Hãy giữ nguyên tên và thứ tự thuộc tính.");
+        }
+        validateVariantGroup(attributes!, groupId === productId ? undefined : root, siblings.map(row => row.data), productId);
+      }
+      const data: Product = { ...previous?.data, ...fields, ...pricing, id: productId, image: input.gallery[0] || "", stock: previous?.data.stock || 0,
+        ...(groupId ? { variantGroupId: groupId, variantAttributes: attributes,
+          size: variantDimension(attributes!, "size") || input.size,
+          color: variantDimension(attributes!, "color") || input.color } : {}) };
       if (published) assertPublishable(data);
       const row = await repository.save(repository.create({ ...previous, id: productId, slug: input.slug, published, data }));
       await manager.getRepository(AuditEntity).save({ actorId: user.id, action: previous ? "product-update" : "product-create", resourceId: row.id, detail: { published, code: data.code, revision: row.revision } });

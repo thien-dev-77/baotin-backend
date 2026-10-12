@@ -8,6 +8,7 @@ import { orderedCategories } from "./category.rules";
 import { CatalogQueryService } from "./catalog-query.service";
 import { CatalogQueryDto, CatalogSelectionDto } from "./catalog-query.dto";
 import { publicProduct } from "./product-pricing";
+import { groupRepresentatives } from "./product-variants";
 
 @Controller("catalog")
 export class CatalogController {
@@ -28,12 +29,18 @@ export class CatalogController {
       this.db.source.getRepository(CategoryEntity).find(),
     ]);
     const customer = user?.customerId ? await this.db.source.getRepository(CustomerEntity).findOneBy({ id: user.customerId }) : null;
-    const products = await this.pricing.personalize(await this.ledger.stock(rows.map(row => row.data), customer?.branch || "Quy Nhơn"), customer?.data);
+    const representative = groupRepresentatives(rows.map(row => row.data));
+    const products = await this.pricing.personalize(await this.ledger.stock(representative, customer?.branch || "Quy Nhơn"), customer?.data);
     return { products, categories: orderedCategories(categories, true) };
   }
   @Get(["product/:slug", ":slug"]) async product(@Param("slug") slug: string) {
     const row = await this.db.source.getRepository(ProductEntity).findOne({ where: [{ slug, published: true }, { id: slug, published: true }] });
     if (!row) throw new NotFoundException("Không tìm thấy sản phẩm.");
-    return publicProduct((await this.ledger.stock([row.data], "Quy Nhơn"))[0]);
+    if (!row.data.variantGroupId) return publicProduct((await this.ledger.stock([row.data], "Quy Nhơn"))[0]);
+    const rows = await this.db.source.getRepository(ProductEntity).createQueryBuilder("p")
+      .where("p.published = true AND p.data->>'variantGroupId' = :groupId", { groupId: row.data.variantGroupId })
+      .orderBy("p.createdAt", "ASC").addOrderBy("p.id", "ASC").getMany();
+    const variants = (await this.ledger.stock(rows.map(item => item.data), "Quy Nhơn")).map(publicProduct);
+    return { ...variants.find(item => item.id === row.id), variants };
   }
 }

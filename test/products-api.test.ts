@@ -199,6 +199,41 @@ test("Product management with isolated database and media", { timeout: 120000 },
       assert.equal(saved.status, 200); assert.equal(saved.data.product.price, 87660);
       assert.equal((await admin.call(`/admin/products/${pricedId}`, "PATCH", { ...body, revision: created.data.product.revision })).status, 409);
     });
+    await t.test("Flexible variants keep independent SKU prices, inventory and public visibility", async () => {
+      const shared = { ...draft, name: "QA configurable shelf", specification: "Inox 304", gallery, published: true, listPrice: 100000, b2cDiscount: 10, b2bDiscount: 20, price: 1 };
+      const rootBody = { ...shared, code: `${draft.code}-600`, slug: `${draft.slug}-600`, size: "600mm", color: "Bạc", variantGroupId: "self", variantAttributes: [{ name: "Kích thước", value: "600mm" }, { name: "Màu sắc", value: "Bạc" }] };
+      const root = await admin.call("/admin/products", "POST", rootBody);
+      assert.equal(root.status, 201, JSON.stringify(root.data));
+      const rootId = root.data.id;
+      assert.equal(root.data.product.variantGroupId, rootId);
+      const childBody = { ...shared, code: `${draft.code}-800`, slug: `${draft.slug}-800`, size: "", color: "", listPrice: 200000, variantGroupId: rootId, variantAttributes: [{ name: "Kích thước", value: "800mm" }, { name: "Màu sắc", value: "Bạc" }] };
+      const child = await admin.call("/admin/products", "POST", childBody);
+      assert.equal(child.status, 201, JSON.stringify(child.data));
+      assert.equal(child.data.product.price, 180000);
+      assert.equal(child.data.product.size, "800mm"); assert.equal(child.data.product.color, "Bạc");
+      await sql.query(`DELETE FROM "${schema}".price_policies`);
+      await sql.query(`INSERT INTO "${schema}".inventory_balances (id,branch,"productId","onHand") VALUES ($1,$2,$3,7)`, [`Quy Nhơn:${child.data.id}`, "Quy Nhơn", child.data.id]);
+      const detail = (await guest.call(`/catalog/product/${childBody.slug}`)).data;
+      assert.equal(detail.variants.length, 2);
+      assert.equal(detail.variants.find((item: { id: string }) => item.id === child.data.id).stock, 7);
+      assert.ok(detail.variants.every((item: Record<string, unknown>) => item.b2bDiscount === undefined && item.customerPrice === undefined));
+      assert.equal((await b2b.call(`/catalog/selection?ids=${child.data.id}`)).data.products[0].customerPrice, 160000);
+      assert.equal((await guest.call("/orders/quote", "POST", { items: [{ productId: child.data.id, quantity: 1 }], delivery: "Nhận tại cửa hàng", coupon: "" })).data.items[0].unitPrice, 180000);
+      const search = (await guest.call(`/catalog/search?${new URLSearchParams({ q: shared.name, category: shared.category })}`)).data;
+      assert.equal(search.products.filter((item: { variantGroupId?: string }) => item.variantGroupId === rootId).length, 1);
+      assert.equal(search.products.find((item: { variantGroupId?: string }) => item.variantGroupId === rootId)?.id, rootId);
+      assert.equal((await guest.call("/catalog/bootstrap")).data.products.filter((item: { variantGroupId?: string }) => item.variantGroupId === rootId).length <= 1, true);
+      const duplicate = await admin.call("/admin/products", "POST", { ...childBody, code: `${draft.code}-dup`, slug: `${draft.slug}-dup`, variantAttributes: [{ name: "kích thước", value: "800MM" }, { name: "Màu sắc", value: "BẠC" }] });
+      assert.equal(duplicate.status, 409);
+      const wrongOrder = await admin.call("/admin/products", "POST", { ...childBody, code: `${draft.code}-wrong`, slug: `${draft.slug}-wrong`, variantAttributes: [...childBody.variantAttributes].reverse() });
+      assert.equal(wrongOrder.status, 400);
+      const privateChild = await admin.call("/admin/products", "POST", { ...childBody, code: `${draft.code}-900`, slug: `${draft.slug}-900`, published: false, variantAttributes: [{ name: "Kích thước", value: "900mm" }, { name: "Màu sắc", value: "Bạc" }] });
+      assert.equal(privateChild.status, 201);
+      assert.equal((await guest.call(`/catalog/product/${childBody.slug}`)).data.variants.length, 2);
+      assert.equal((await guest.call(`/catalog/product/${privateChild.data.id}`)).status, 404);
+      const rootEdit = await admin.call(`/admin/products/${rootId}`, "PATCH", { ...rootBody, variantGroupId: rootId, revision: root.data.product.revision, variantAttributes: [{ name: "Chiều dài", value: "600mm" }, { name: "Màu sắc", value: "Bạc" }] });
+      assert.equal(rootEdit.status, 400);
+    });
   } finally {
     if (child.exitCode === null) { child.kill("SIGTERM"); await once(child, "exit"); }
     await sql.query(`DROP SCHEMA IF EXISTS "${schema}" CASCADE`);

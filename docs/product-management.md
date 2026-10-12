@@ -18,6 +18,28 @@ Product fields: `name`, `code`, `slug`, `category`, `subcategory`, `brand`,
 `unit`, legacy `price`/optional `oldPrice`, or configured `listPrice`,
 `b2cDiscount`, `b2bDiscount`, `specification`, `material`, `color`,
 `size`, `origin`, `description`, `gallery`, `featured`, `published`.
+Optional `variantGroupId` and `variantAttributes: [{ name, value }]` group
+multiple independent SKUs. For a new group, send `variantGroupId: "self"` with
+1-6 attributes. The server replaces `self` with the new product UUID. For a
+child SKU, send that UUID as `variantGroupId` and the same ordered attribute
+names with different values. Each SKU still has its own code, slug, price,
+gallery, stock, publication state, Kiot mapping and order identity. Product
+groups live in JSONB; no TypeORM migration is required.
+
+The server rejects duplicate combinations (case insensitive), repeated
+attribute names, missing group roots, inconsistent category/brand/unit, or
+changing group identity. Once children exist, attribute names and order of the
+root stay fixed. `Kích thước...`/`Size` and `Màu sắc`/`Color` attributes also
+set the existing `size`/`color` catalog facets. A child may be private while
+other SKUs in the group stay public. Order quotes and price policies continue
+to use the exact child `productId`; existing order snapshots are unchanged.
+
+`GET /catalog/product/:slug` embeds a `variants` array for grouped products.
+It includes only public SKUs and retail data, with no guest B2B prices.
+Authenticated B2B clients request `/catalog/selection?ids=...` for their actual
+policy prices. Public search, bootstrap and `/catalog` show one matching SKU per
+group; size/stock/price filters apply to individual SKUs before grouping.
+Admin browse and CSV retain every SKU for editing and inventory operations.
 Unknown properties, client stock/customer prices and invalid numbers are rejected.
 `description` is plain text, not HTML; storefront renders it escaped.
 Category must exist; optional subcategory must belong to it.
