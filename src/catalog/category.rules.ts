@@ -1,5 +1,6 @@
 import type { CategoryEntity } from "../database/entities";
 import type { Category } from "../types/domain.types";
+import { categoryTrail } from "./category-tree";
 
 // Keep the pre-management catalog order for legacy rows without a saved position.
 const legacyOrder = [
@@ -29,9 +30,13 @@ export function orderedCategories(
   rows: CategoryEntity[],
   publicOnly = false,
 ): Category[] {
-  return rows
-    .map(categoryView)
-    .filter((category) => !publicOnly || category.visible)
+  const categories = rows.map(categoryView);
+  return categories
+    .filter((category) => {
+      if (!publicOnly) return true;
+      const trail = categoryTrail(categories, category.slug);
+      return trail.length > 0 && trail.every(ancestor => ancestor.visible !== false);
+    })
     .sort(
       (a, b) => a.sortOrder! - b.sortOrder! || a.slug.localeCompare(b.slug),
     );

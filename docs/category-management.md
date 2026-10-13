@@ -19,7 +19,7 @@ Categories are global website data, not branch-specific.
 
 ## Contract
 
-Category fields: `slug`, `name`, `image`, `description`, `subcategories`,
+Category fields: `slug`, `name`, `parentSlug`, `image`, `description`, `subcategories`,
 `visible`, `sortOrder`. Admin responses additionally have `revision` and
 `productCount`; public responses also carry the current revision.
 
@@ -28,6 +28,7 @@ Create/update body:
 ```json
 {
   "slug": "thiet-bi-phong-tam",
+  "parentSlug": "",
   "name": "Thiet bi phong tam",
   "image": "/media/uploads/UPLOAD-UUID.webp",
   "description": "Thiet bi va phu kien phong tam",
@@ -54,8 +55,34 @@ update always advances it, including an identical save. A stale revision returns
   POST /api/media/product-images with one `images` file: JPEG/PNG/WebP, 5 MB max.
   Uploads are converted to WebP and served from the backend media directory.
 - HTTP/external paths, traversal and nonexistent image files are rejected.
-- Product count includes public and private products. There is no destructive
+- Product count includes public and private products in the entire subtree. There is no destructive
   category-delete endpoint; use visibility instead.
+
+## Parent And Child Categories
+
+`parentSlug=""` or an absent value creates a root. A nonempty value references
+another saved category by its immutable slug. PATCH without this field retains
+the current parent; sending an empty string moves the branch to the root.
+The entire resulting tree is validated inside the serialized transaction.
+Missing parents, self-parenting, indirect cycles and more than four levels
+return 400 without changing any category. Reparenting checks descendant depth.
+
+`subcategories` remains the legacy list of product-group filter labels; it is
+not the category tree. Actual child categories are separate records with their
+own slug, cover, visibility and revision. Products keep a single `category` slug.
+No relational schema change is required: `parentSlug` is stored in existing JSONB.
+
+Public navigation excludes descendants of hidden ancestors without rewriting
+their own visibility or product publication. Public child routes return 404
+when any ancestor is hidden. Catalog search expands a selected visible parent
+to its visible descendant slugs; direct published product URLs remain available.
+Admin browse and bulk product selection expand parents across all descendants,
+including hidden categories. Category counts include the entire subtree.
+Homepage selection remains bounded at five distinct variant groups per root,
+with at most five category sections and 55 hydrated showcase/category products.
+
+See [Fulco normalization](fulco-category-normalization.md) for the reference
+tree, safe maintenance command and actual data update.
 
 ## Bulk Visibility
 

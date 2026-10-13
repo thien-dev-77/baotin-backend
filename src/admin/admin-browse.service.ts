@@ -6,6 +6,7 @@ import { LedgerService } from "../ledger/ledger.service";
 import { businessDate } from "../orders/orders.service";
 import { validDate } from "../catalog/price-policy.service";
 import { orderedCategories } from "../catalog/category.rules";
+import { categoryDescendants } from "../catalog/category-tree";
 import { normalizeSearch } from "../catalog/catalog-query.service";
 import { redactProductPricing } from "../catalog/product-pricing";
 import { emptyAdminState } from "./admin-resources";
@@ -62,10 +63,13 @@ export class AdminBrowseService {
     result.customers = []; result.approvals = []; result.receipts = []; result.paymentDueDates = {};
     return result;
   }
-  private productQuery(input: AdminBrowseDto) {
+  private async productQuery(input: AdminBrowseDto) {
     const query = this.db.source.getRepository(ProductEntity).createQueryBuilder("r").orderBy("r.data->>'name'", "ASC").addOrderBy("r.id", "ASC");
     applyAdminSearch(query, input.q, ["r.data->>'name'", "r.data->>'code'", "r.data->>'alternateCode'", "r.data->>'brand'"]);
-    if (input.category) query.andWhere("r.data->>'category' = :category", { category: input.category });
+    if (input.category) {
+      const categories = orderedCategories(await this.db.source.getRepository(CategoryEntity).find());
+      query.andWhere("r.data->>'category' IN (:...categorySlugs)", { categorySlugs: categoryDescendants(categories, input.category) });
+    }
     if (input.status && input.status !== "all") {
       if (!["published", "hidden"].includes(input.status)) throw new BadRequestException("Trạng thái sản phẩm không hợp lệ.");
       query.andWhere("r.published = :published", { published: input.status === "published" });
@@ -75,7 +79,8 @@ export class AdminBrowseService {
   async productSelection(user: UserEntity, input: AdminBrowseDto) {
     this.authorize(user, input.branch);
     if (input.resource !== "products") throw new BadRequestException("Chỉ chọn danh sách sản phẩm.");
-    const products = await this.productQuery(input).select("r.id", "id").addSelect("r.revision", "revision").addSelect("r.data->>'code'", "code").limit(MAX_BULK_PRODUCTS + 1).getRawMany<{ id: string; revision: number; code: string }>();
+    const query = await this.productQuery(input);
+    const products = await query.select("r.id", "id").addSelect("r.revision", "revision").addSelect("r.data->>'code'", "code").limit(MAX_BULK_PRODUCTS + 1).getRawMany<{ id: string; revision: number; code: string }>();
     if (products.length > MAX_BULK_PRODUCTS) throw new BadRequestException(`Lọc danh sách còn tối đa ${MAX_BULK_PRODUCTS} sản phẩm để chọn tất cả.`);
     return { products, count: products.length };
   }
@@ -84,7 +89,7 @@ export class AdminBrowseService {
     if ((input.from && !validDate(input.from)) || (input.to && !validDate(input.to)) || (input.from && input.to && input.from > input.to)) throw new BadRequestException("Khoảng ngày không hợp lệ.");
     const result: Partial<ApiAdminState> = { today: businessDate() };
     if (input.resource === "products") {
-      const query = this.productQuery(input);
+      const query = await this.productQuery(input);
       const { rows, pagination } = await this.window(query, input);
       result.products = await this.ledger.stock(rows.map(row => ({ ...row.data, published: row.published, revision: row.revision })), input.branch);
       result.categories = orderedCategories(await this.db.source.getRepository(CategoryEntity).find());

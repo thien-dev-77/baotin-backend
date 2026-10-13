@@ -464,6 +464,38 @@ test(
         ]);
         assert.deepEqual(responses.map(response => response.status).sort(), [201, 409]);
       });
+      await t.test("Hierarchical categories expand catalog/admin queries and validate every descendant", async () => {
+        const tree: Record<string, unknown>[] = [];
+        for (let depth = 0; depth < 4; depth++) {
+          const created = await admin.call("/admin/categories", "POST", { ...draft, slug: `qa-tree-${depth}`, name: `QA tree level ${depth}`, parentSlug: depth ? `qa-tree-${depth - 1}` : "", subcategories: [], visible: true });
+          assert.equal(created.status, 201, JSON.stringify(created.data));
+          tree.push(created.data.category);
+        }
+        assert.equal((await admin.call("/admin/categories", "POST", { ...draft, slug: "qa-tree-too-deep", name: "QA too deep", parentSlug: "qa-tree-3" })).status, 400);
+        for (const parentSlug of ["missing-parent", "qa-tree-0", "qa-tree-3"]) assert.equal((await admin.call("/admin/categories/qa-tree-0", "PATCH", { ...tree[0], parentSlug })).status, 400);
+        const template = (await sql.query(`SELECT data FROM "${schema}".products WHERE data->>'category'=$1 LIMIT 1`, [slug])).rows[0].data;
+        const nested = { ...template, id: "QA-TREE-PRODUCT", slug: "qa-tree-product", code: "QA-TREE-PRODUCT", category: "qa-tree-3", subcategory: "", stock: 5 };
+        await sql.query(`INSERT INTO "${schema}".products (id,slug,data,published,revision) VALUES ($1,$2,$3,true,1)`, [nested.id, nested.slug, nested]);
+        const publicRoot = await guest.call("/catalog/search?category=qa-tree-0");
+        assert.equal(publicRoot.status, 200, JSON.stringify(publicRoot.data));
+        assert.equal(publicRoot.data.total, 1);
+        assert.equal(publicRoot.data.products[0].id, nested.id);
+        const browsed = await admin.call("/admin/browse?resource=products&category=qa-tree-0&branch=Quy%20Nh%C6%A1n");
+        assert.equal(browsed.status, 200, JSON.stringify(browsed.data));
+        assert.equal(browsed.data.products.length, 1);
+        const directory = (await admin.call("/admin/categories")).data.items;
+        for (const node of tree) assert.equal(directory.find((item: { slug: string }) => item.slug === node.slug).productCount, 1);
+        const bootstrap = await guest.call("/catalog/bootstrap");
+        assert.equal(bootstrap.status, 200, JSON.stringify(bootstrap.data));
+        assert.ok(bootstrap.data.products.length <= 55);
+        const hidden = await admin.call("/admin/categories/qa-tree-0", "PATCH", { ...tree[0], visible: false });
+        assert.equal(hidden.status, 200);
+        assert.equal((await guest.call("/categories/qa-tree-3")).status, 404);
+        assert.equal((await guest.call("/categories")).data.items.filter((item: { slug: string }) => item.slug.startsWith("qa-tree-")).length, 0);
+        const stored = (await sql.query(`SELECT data,published FROM "${schema}".products WHERE id=$1`, [nested.id])).rows[0];
+        assert.equal(stored.published, true);
+        assert.deepEqual(stored.data, nested);
+      });
     } finally {
       if (child.exitCode === null) {
         child.kill("SIGTERM");

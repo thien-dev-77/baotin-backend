@@ -23,6 +23,7 @@ import { CategoryDto } from "./category.dto";
 import { categoryView, orderedCategories } from "./category.rules";
 import { CategoryBulkDto } from "./category-bulk.dto";
 import { CategoryBulkService } from "./category-bulk.service";
+import { assertCategoryTree, categoryDescendants } from "./category-tree";
 
 @Controller("categories")
 export class CategoriesController {
@@ -36,12 +37,10 @@ export class CategoriesController {
     };
   }
   @Get(":slug") async detail(@Param("slug") slug: string) {
-    const row = await this.db.source
-      .getRepository(CategoryEntity)
-      .findOneBy({ slug });
-    if (!row || row.data.visible === false)
+    const category = orderedCategories(await this.db.source.getRepository(CategoryEntity).find(), true).find(item => item.slug === slug);
+    if (!category)
       throw new NotFoundException("Không tìm thấy danh mục.");
-    return categoryView(row);
+    return category;
   }
 }
 
@@ -71,14 +70,12 @@ export class AdminCategoriesController {
       .addSelect("COUNT(*)::int", "count")
       .groupBy("p.data->>'category'")
       .getRawMany<{ slug: string; count: number }>();
+    const categories = orderedCategories(await this.db.source.getRepository(CategoryEntity).find());
     return {
-      items: orderedCategories(
-        await this.db.source.getRepository(CategoryEntity).find(),
-      ).map((category) => ({
-        ...category,
-        productCount:
-          counts.find((item) => item.slug === category.slug)?.count || 0,
-      })),
+      items: categories.map((category) => {
+        const descendants = new Set(categoryDescendants(categories, category.slug));
+        return { ...category, productCount: counts.filter(item => descendants.has(item.slug)).reduce((sum, item) => sum + item.count, 0) };
+      }),
     };
   }
   @Post() create(@Body() input: CategoryDto, @Req() request: AuthRequest) {
@@ -129,7 +126,8 @@ export class AdminCategoriesController {
       if (slug && slug !== input.slug)
         throw new BadRequestException("Không đổi đường dẫn danh mục đã tạo.");
       const nameKey = input.name.toLocaleLowerCase("vi");
-      const duplicate = (await repository.find()).some(
+      const existing = await repository.find();
+      const duplicate = existing.some(
         (row) =>
           row.slug !== slug &&
           (row.slug === input.slug ||
@@ -156,6 +154,9 @@ export class AdminCategoriesController {
           );
       }
       const { revision: _revision, ...data } = input;
+      const parentSlug = input.parentSlug ?? previous?.data.parentSlug ?? "";
+      data.parentSlug = parentSlug;
+      assertCategoryTree([...existing.filter(row => row.slug !== input.slug).map(categoryView), { ...data }]);
       const row = await repository.save(
         repository.create({
           ...previous,

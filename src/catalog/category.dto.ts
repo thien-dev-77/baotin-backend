@@ -24,6 +24,7 @@ export class CategoryDto {
   @Length(1, 80)
   @Matches(/^[a-z0-9]+(?:-[a-z0-9]+)*$/)
   slug!: string;
+  @IsOptional() @trim @IsString() @MaxLength(80) @Matches(/^(?:|[a-z0-9]+(?:-[a-z0-9]+)*)$/) parentSlug?: string;
   @trim @IsString() @Length(2, 120) name!: string;
   @trim
   @IsString()

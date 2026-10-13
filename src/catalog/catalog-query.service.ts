@@ -10,6 +10,8 @@ import type { CatalogQueryDto, CatalogSelectionDto } from "./catalog-query.dto";
 import { publicProduct, retailPrice, retailProjection, type PricingProduct } from "./product-pricing";
 import { groupRepresentatives } from "./product-variants";
 import { ReviewEntity } from "../database/experience.entities";
+import { categoryDescendants } from "./category-tree";
+import type { Category } from "../types/domain.types";
 
 const facetFields = ["brand", "material", "color", "size", "origin"] as const;
 const HOME_CATEGORY_SECTIONS = 5;
@@ -52,15 +54,24 @@ export class CatalogQueryService {
     return products.map(product => ({ ...product, reviewSummary: summaries.get(product.id) || { rating: 0, count: 0 } }));
   }
 
-  private async homeCategoryIds(categories: { slug: string }[]): Promise<string[]> {
+  private async homeCategoryIds(categories: Category[]): Promise<string[]> {
     if (!categories.length) return [];
+    const roots = categories.filter(category => !category.parentSlug);
+    if (!roots.length) return [];
+    const parameters: Record<string, string | string[]> = {};
+    const cases = roots.map((root, index) => {
+      parameters[`homeCategories${index}`] = categoryDescendants(categories, root.slug);
+      parameters[`homeRoot${index}`] = root.slug;
+      return `WHEN p.data->>'category' IN (:...homeCategories${index}) THEN :homeRoot${index}`;
+    });
+    const rootCategory = `CASE ${cases.join(" ")} ELSE p.data->>'category' END`;
     // Select one published SKU per variant group, then five IDs per category in
     // one bounded query. Galleries and descriptions are hydrated only afterward.
     const representatives = this.db.source.getRepository(ProductEntity).createQueryBuilder("p")
-      .select("p.id", "id").addSelect("p.data->>'category'", "category")
+      .select("p.id", "id").addSelect(rootCategory, "category")
       .addSelect("COALESCE((p.data->>'featured')::boolean, false)", "featured")
-      .addSelect("ROW_NUMBER() OVER (PARTITION BY p.data->>'category', COALESCE(NULLIF(p.data->>'variantGroupId', ''), p.id) ORDER BY CASE WHEN p.id = p.data->>'variantGroupId' THEN 0 ELSE 1 END, p.id)", "variantRank")
-      .where("p.published = true AND p.data->>'category' IN (:...categories)", { categories: categories.map(category => category.slug) });
+      .addSelect(`ROW_NUMBER() OVER (PARTITION BY ${rootCategory}, COALESCE(NULLIF(p.data->>'variantGroupId', ''), p.id) ORDER BY CASE WHEN p.id = p.data->>'variantGroupId' THEN 0 ELSE 1 END, p.id)`, "variantRank")
+      .where("p.published = true AND p.data->>'category' IN (:...categories)", { categories: categories.map(category => category.slug), ...parameters });
     const ranked = this.db.source.createQueryBuilder()
       .select('r.id', "id").addSelect('r.category', "category")
       .addSelect("ROW_NUMBER() OVER (PARTITION BY r.category ORDER BY r.featured DESC, r.id)", "categoryRank")
@@ -68,7 +79,7 @@ export class CatalogQueryService {
     const rows = await this.db.source.createQueryBuilder().select("h.id", "id").addSelect("h.category", "category")
       .from(`(${ranked.getQuery()})`, "h").where('h."categoryRank" <= :count', { count: HOME_CATEGORY_PRODUCTS })
       .orderBy('h."categoryRank"', "ASC").setParameters(ranked.getParameters()).getRawMany<{ id: string; category: string }>();
-    const populated = categories.filter(category => rows.some(row => row.category === category.slug)).slice(0, HOME_CATEGORY_SECTIONS);
+    const populated = roots.filter(category => rows.some(row => row.category === category.slug)).slice(0, HOME_CATEGORY_SECTIONS);
     return populated.flatMap(category => rows.filter(row => row.category === category.slug).map(row => row.id));
   }
 
@@ -102,9 +113,10 @@ export class CatalogQueryService {
 
   async search(input: CatalogQueryDto, user?: UserEntity) {
     if (input.min !== undefined && input.max !== undefined && input.min > input.max) throw new BadRequestException("Giá từ không được lớn hơn giá đến.");
+    const metadata = await this.metadata();
     const query = this.db.source.getRepository(ProductEntity).createQueryBuilder("p").where("p.published = true");
     for (const field of ["category", ...facetFields] as const) {
-      if (input[field]?.length) query.andWhere(`p.data->>'${field}' IN (:...${field})`, { [field]: input[field] });
+      if (input[field]?.length) query.andWhere(`p.data->>'${field}' IN (:...${field})`, { [field]: field === "category" ? [...new Set(input.category!.flatMap(slug => categoryDescendants(metadata.categories, slug)))] : input[field] });
     }
     if (input.subcategory) query.andWhere("p.data->>'subcategory' = :subcategory", { subcategory: input.subcategory });
     if (input.promotion) query.andWhere("(p.data->>'oldPrice')::numeric > (p.data->>'price')::numeric");
@@ -118,7 +130,7 @@ export class CatalogQueryService {
       .addSelect("p.data->>'variantGroupId'", "variantGroupId")
       .addSelect("(p.data->>'listPrice')::numeric", "listPrice").addSelect("(p.data->>'b2cDiscount')::numeric", "b2cDiscount").addSelect("(p.data->>'b2bDiscount')::numeric", "b2bDiscount")
       .addSelect("(p.data->>'stock')::integer", "stock").addSelect("(p.data->>'featured')::boolean", "featured").addSelect("p.createdAt", "createdAt");
-    const [raw, metadata, context] = await Promise.all([query.getRawMany<Candidate>(), this.metadata(), this.context(user)]);
+    const [raw, context] = await Promise.all([query.getRawMany<Candidate>(), this.context(user)]);
     const policy = selectPricePolicy(context.customer, context.customer ? await this.pricing.list(context.branch) : [], today());
     const candidates = await this.ledger.stock(raw.map(row => ({ ...row, price: Number(row.price), stock: Number(row.stock), listPrice: row.listPrice == null ? undefined : Number(row.listPrice), b2cDiscount: row.b2cDiscount == null ? undefined : Number(row.b2cDiscount), b2bDiscount: row.b2bDiscount == null ? undefined : Number(row.b2bDiscount) })), context.branch);
     const activeB2b = context.customer?.status === "Đang hoạt động";
