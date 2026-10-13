@@ -23,7 +23,7 @@ export class ProductBulkService {
       if (stale.length) throw new ConflictException(`Sản phẩm đã thay đổi: ${stale.slice(0, 5).map(row => row.data.code).join(", ")}. Làm mới và chọn lại trước khi cập nhật.`);
       const categories = await manager.getRepository(CategoryEntity).findBy({ slug: In([...new Set(rows.map(row => row.data.category))]) });
       const categoryBySlug = new Map(categories.map(row => [row.slug, row]));
-      const invalid: string[] = [];
+      const skipped: { id: string; code: string; name: string; reason: string }[] = [];
       for (const row of rows) {
         if (input.action === "discounts") {
           if (!hasRetailPricing(row.data) || row.data.b2bDiscount === undefined) throw new BadRequestException(`Sản phẩm ${row.data.code} chưa cấu hình giá niêm yết và CK B2C/B2B. Hãy cấu hình trước khi sửa hàng loạt.`);
@@ -33,17 +33,24 @@ export class ProductBulkService {
           try {
             assertPublishable(row.data);
             const category = categoryBySlug.get(row.data.category);
-            if (!category || (row.data.subcategory && !category.data.subcategories.includes(row.data.subcategory))) throw new Error("Invalid category.");
-            await Promise.all(row.data.gallery.map(assertProductImageExists));
-          } catch { invalid.push(row.data.code); }
+            if (!category || (row.data.subcategory && !category.data.subcategories.includes(row.data.subcategory))) throw new BadRequestException("Danh mục hoặc nhóm sản phẩm không còn hợp lệ. Chọn lại trong trang sửa sản phẩm.");
+            try { await Promise.all(row.data.gallery.map(assertProductImageExists)); }
+            catch { throw new BadRequestException("Ảnh sản phẩm không tồn tại trên backend. Vui lòng tải lại ảnh."); }
+          } catch (cause) {
+            if (!(cause instanceof BadRequestException)) throw cause;
+            skipped.push({ id: row.id, code: row.data.code, name: row.data.name, reason: cause.message });
+            continue;
+          }
         }
         if (input.action !== "discounts") row.published = input.action === "publish";
       }
-      if (invalid.length) throw new BadRequestException(`Chưa thể công khai ${invalid.length} sản phẩm thiếu nội dung, giá hoặc ảnh hợp lệ: ${invalid.slice(0, 8).join(", ")}. Chưa cập nhật sản phẩm nào.`);
-      const saved = await repository.save(rows);
-      const hiddenCategories = input.action === "publish" ? categories.filter(category => category.data.visible === false).map(category => category.data.name) : [];
-      await manager.getRepository(AuditEntity).save({ actorId, action: `products-bulk-${input.action}`, resourceId: "products", detail: { products: saved.map(row => ({ id: row.id, revision: row.revision })), b2cDiscount: input.b2cDiscount, b2bDiscount: input.b2bDiscount } });
-      return { updated: saved.length, action: input.action, products: saved.map(row => ({ id: row.id, revision: row.revision, published: row.published })), hiddenCategories };
+      const skippedIds = new Set(skipped.map(product => product.id));
+      const validRows = rows.filter(row => !skippedIds.has(row.id));
+      const saved = validRows.length ? await repository.save(validRows) : [];
+      const publishedCategories = new Set(saved.map(row => row.data.category));
+      const hiddenCategories = input.action === "publish" ? categories.filter(category => publishedCategories.has(category.slug) && category.data.visible === false).map(category => category.data.name) : [];
+      await manager.getRepository(AuditEntity).save({ actorId, action: `products-bulk-${input.action}`, resourceId: "products", detail: { products: saved.map(row => ({ id: row.id, revision: row.revision })), skipped, b2cDiscount: input.b2cDiscount, b2bDiscount: input.b2bDiscount } });
+      return { updated: saved.length, action: input.action, products: saved.map(row => ({ id: row.id, revision: row.revision, published: row.published })), skipped, hiddenCategories };
     });
   }
 }

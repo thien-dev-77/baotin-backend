@@ -400,6 +400,70 @@ test(
           assert.ok(audit.some((row) => row.action === "category-update"));
         },
       );
+      await t.test("Bulk visibility requires admin/boss and validates explicit selections", async () => {
+        const body = { action: "show", categories: [{ slug, revision }] };
+        assert.equal((await guest.call("/admin/categories/bulk", "POST", body)).status, 401);
+        for (const actor of [sales, accountant, warehouse, b2b]) assert.equal((await actor.call("/admin/categories/bulk", "POST", body)).status, 403);
+        for (const invalid of [
+          { ...body, categories: [] },
+          { ...body, categories: [body.categories[0], body.categories[0]] },
+          { ...body, categories: [{ slug, revision: 0 }] },
+          { ...body, categories: [{ slug, revision: "1" }] },
+          { ...body, categories: [{ slug: "../bad", revision: 1 }] },
+          { ...body, action: "publish" },
+          { ...body, visible: true },
+          { ...body, categories: Array.from({ length: 501 }, (_, index) => ({ slug: `bulk-${index}`, revision: 1 })) },
+        ]) assert.equal((await admin.call("/admin/categories/bulk", "POST", invalid)).status, 400);
+      });
+      await t.test("Bulk show/hide changes only selected visibility with one audit event", async () => {
+        const body = { action: "show", categories: [{ slug, revision }] };
+        const result = await boss.call("/admin/categories/bulk", "POST", body);
+        assert.equal(result.status, 201, JSON.stringify(result.data));
+        assert.equal(result.data.updated, 1);
+        assert.equal(result.data.visible, true);
+        assert.equal(result.data.categories[0].revision, revision + 1);
+        revision = result.data.categories[0].revision;
+        assert.equal((await guest.call(`/categories/${slug}`)).status, 200);
+        const beforeProducts = (await sql.query(`SELECT id, published, data FROM "${schema}".products ORDER BY id`)).rows;
+        const before = (await guest.call(`/categories/${slug}`)).data;
+        const hidden = await admin.call("/admin/categories/bulk", "POST", { action: "hide", categories: [{ slug, revision }] });
+        assert.equal(hidden.status, 201);
+        revision = hidden.data.categories[0].revision;
+        assert.equal((await guest.call(`/categories/${slug}`)).status, 404);
+        const afterProducts = (await sql.query(`SELECT id, published, data FROM "${schema}".products ORDER BY id`)).rows;
+        assert.deepEqual(afterProducts, beforeProducts);
+        const after = (await admin.call("/admin/categories")).data.items.find((row: { slug: string }) => row.slug === slug);
+        assert.equal(after.visible, false);
+        for (const field of ["name", "slug", "image", "description", "subcategories", "sortOrder"]) assert.deepEqual(after[field], before[field]);
+        const audit = (await sql.query(`SELECT action, detail FROM "${schema}".audit_events WHERE "resourceId"=$1`, ["categories"])).rows;
+        assert.deepEqual(audit.map(row => row.action).sort(), ["categories-bulk-hide", "categories-bulk-show"]);
+        assert.deepEqual(audit.find(row => row.action === "categories-bulk-hide").detail.categories, hidden.data.categories);
+      });
+      await t.test("Bulk validation is atomic for missing categories, stale revisions and missing cover images", async () => {
+        const empty = `${slug}-no-cover`;
+        const broken = `${slug}-broken-cover`;
+        await sql.query(`INSERT INTO "${schema}".categories (slug,data,revision) VALUES ($1,$2,1),($3,$4,1)`, [empty, { ...draft, slug: empty, name: "No cover QA", visible: false, image: "" }, broken, { ...draft, slug: broken, name: "Missing image QA", visible: false, image: "/media/uploads/does-not-exist.webp" }]);
+        const good = { slug, revision };
+        for (const [category, status] of [[{ slug: "qa-category-missing", revision: 1 }, 404], [{ slug, revision: revision - 1 }, 409], [{ slug: empty, revision: 1 }, 400], [{ slug: broken, revision: 1 }, 400]] as const) {
+          const categories = category.slug === slug ? [category] : [good, category];
+          const result = await admin.call("/admin/categories/bulk", "POST", { action: "show", categories });
+          assert.equal(result.status, status, JSON.stringify(result.data));
+          const saved = (await sql.query(`SELECT data, revision FROM "${schema}".categories WHERE slug=$1`, [slug])).rows[0];
+          assert.equal(saved.data.visible, false);
+          assert.equal(saved.revision, revision);
+        }
+        const response = await admin.call("/admin/categories/bulk", "POST", { action: "hide", categories: [good, { slug: empty, revision: 1 }, { slug: broken, revision: 1 }] });
+        assert.equal(response.status, 201);
+        assert.equal(response.data.updated, 3);
+        revision = response.data.categories.find((category: { slug: string }) => category.slug === slug).revision;
+      });
+      await t.test("Concurrent category bulk writes cannot overwrite a newer revision", async () => {
+        const responses = await Promise.all([
+          admin.call("/admin/categories/bulk", "POST", { action: "show", categories: [{ slug, revision }] }),
+          boss.call("/admin/categories/bulk", "POST", { action: "hide", categories: [{ slug, revision }] }),
+        ]);
+        assert.deepEqual(responses.map(response => response.status).sort(), [201, 409]);
+      });
     } finally {
       if (child.exitCode === null) {
         child.kill("SIGTERM");

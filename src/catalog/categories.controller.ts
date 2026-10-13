@@ -21,6 +21,8 @@ import {
 import { assertProductImageExists } from "../media/product-media";
 import { CategoryDto } from "./category.dto";
 import { categoryView, orderedCategories } from "./category.rules";
+import { CategoryBulkDto } from "./category-bulk.dto";
+import { CategoryBulkService } from "./category-bulk.service";
 
 @Controller("categories")
 export class CategoriesController {
@@ -48,6 +50,7 @@ export class AdminCategoriesController {
   constructor(
     private readonly db: DatabaseService,
     private readonly auth: AuthService,
+    private readonly bulk: CategoryBulkService,
   ) {}
   private async authorize(request: AuthRequest, writing = false) {
     const user = (await this.auth.authenticate(request))!;
@@ -80,6 +83,10 @@ export class AdminCategoriesController {
   }
   @Post() create(@Body() input: CategoryDto, @Req() request: AuthRequest) {
     return this.save(input, request);
+  }
+  @Post("bulk") async updateBulk(@Body() input: CategoryBulkDto, @Req() request: AuthRequest) {
+    const user = await this.authorize(request, true);
+    return this.bulk.apply(input, user.id);
   }
   @Patch(":slug") update(
     @Param("slug") slug: string,

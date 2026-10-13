@@ -11,6 +11,7 @@ Implemented UI and API; not deployed to production by this change.
 | GET /api/admin/categories | Admin, boss, Sales, accountant | All categories, including hidden; product counts |
 | POST /api/admin/categories | Admin, boss | Create category |
 | PATCH /api/admin/categories/:slug | Admin, boss | Edit category with required revision |
+| POST /api/admin/categories/bulk | Admin, boss | Show/hide selected categories atomically |
 
 Mutations retain existing HttpOnly JWT cookie authentication, trusted-origin
 checks and transaction serialization. No anonymous or B2B management access.
@@ -55,6 +56,29 @@ update always advances it, including an identical save. A stale revision returns
 - HTTP/external paths, traversal and nonexistent image files are rejected.
 - Product count includes public and private products. There is no destructive
   category-delete endpoint; use visibility instead.
+
+## Bulk Visibility
+
+```json
+{
+  "action": "show",
+  "categories": [
+    { "slug": "phu-kien-bep", "revision": 2 },
+    { "slug": "phu-kien-tu-ao", "revision": 3 }
+  ]
+}
+```
+
+`action` is `show` or `hide`. Supply 1-500 unique category slugs with positive
+integer revisions. The response is `{ updated, visible, categories }`; each
+category contains `slug`, its new `revision` and `visible`.
+All selections are validated in the serialized transaction before writing.
+Missing categories return 404; stale revisions return 409. Showing a category
+without a valid backend cover image returns 400 and identifies affected names.
+Any failure leaves every selected category unchanged. Hiding is allowed even
+when covers are missing. One audit event records the batch and new revisions.
+Names, images, descriptions, groups, ordering and all products remain unchanged.
+No schema changes or automatic publication of imported private products.
 
 ## Visibility
 

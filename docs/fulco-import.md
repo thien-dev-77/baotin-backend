@@ -124,10 +124,20 @@ product content, stock ledger or `/admin/state`. Only product managers can use i
 
 Either discount may be omitted to keep its current value. Products must already
 have configured list/B2C/B2B pricing. Price policies retain priority. The API
-rejects stale revisions, duplicate/missing IDs, empty/invalid discounts and
-incomplete publication. All selected products are validated before writes;
-one invalid product aborts the transaction. Response includes updated revisions
-and hidden category names when publishing. Bulk actions do not change category
+rejects stale revisions, duplicate/missing IDs and empty/invalid discounts before
+writing. `private` and `discounts` remain all-or-nothing transactions.
+
+For `publish`, content/price/category/image validation runs per selected product.
+Valid products are published together; incomplete products are skipped without
+changing their data, publication status or revision. A normal successful response
+includes `updated` (only the saved products), their new revisions, `skipped`
+(`[{ id, code, name, reason }]`) and hidden category names for published products.
+When every product is invalid, return `updated: 0`, `products: []` and the full
+skip list; no product rows are changed. Audit details record saved and skipped SKU.
+Authorization, stale revisions, missing IDs and database failures still reject
+the request and cannot partially overwrite data.
+
+Bulk actions do not change category
 visibility or unselected variants and do not recalculate existing order snapshots.
 
 ## Verification

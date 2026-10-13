@@ -40,6 +40,7 @@ import { ReportsController } from "./reports/reports.controller";
 import { KiotReconciliationService } from "./integrations/kiot-reconciliation.service";
 import { CustomersController } from "./customers/customers.controller";
 import { AdminCategoriesController, CategoriesController } from "./catalog/categories.controller";
+import { CategoryBulkService } from "./catalog/category-bulk.service";
 
 @Module({
   imports: [JwtModule.registerAsync({ useFactory: () => {
@@ -48,6 +49,6 @@ import { AdminCategoriesController, CategoriesController } from "./catalog/categ
     return { secret };
   } }), ThrottlerModule.forRoot([{ ttl: 60000, limit: 240 }])],
   controllers: [AuthController, CatalogController, CategoriesController, AdminCategoriesController, OrdersController, AdminController, AdminBrowseController, AccountController, CustomersController, MediaController, HealthController, ContactController, PricePolicyController, LedgerController, UserManagementController, KiotController, AdminProductsController, NotificationsController, CustomerActionsController, PublicContentController, AdminContentController, ReviewsController, AdminReviewsController, DocumentsController, ReportsController],
-  providers: [DatabaseService, SeedService, AuthService, CatalogQueryService, ProductBulkService, OrdersService, AdminService, AdminBrowseService, AdminDashboardService, PricePolicyService, LedgerService, PasswordRecoveryService, KiotClient, KiotService, KiotReconciliationService, NotificationsService, { provide: APP_GUARD, useClass: ThrottlerGuard }]
+  providers: [DatabaseService, SeedService, AuthService, CatalogQueryService, ProductBulkService, CategoryBulkService, OrdersService, AdminService, AdminBrowseService, AdminDashboardService, PricePolicyService, LedgerService, PasswordRecoveryService, KiotClient, KiotService, KiotReconciliationService, NotificationsService, { provide: APP_GUARD, useClass: ThrottlerGuard }]
 })
 export class AppModule {}

@@ -16,7 +16,7 @@ async function freePort() {
   const port = server.address().port; await new Promise(resolve => server.close(resolve)); return port;
 }
 
-test("bulk product API enforces permissions, atomic validation, revisions and independent discounts", { timeout: 120000 }, async () => {
+test("bulk product API partially publishes valid SKU and enforces permissions, revisions and atomic discounts", { timeout: 120000 }, async () => {
   const directory = await mkdtemp(join(tmpdir(), "baotin-bulk-qa-"));
   const dbPort = await freePort(), apiPort = await freePort();
   const password = `QA-${randomBytes(12).toString("hex")}`;
@@ -57,17 +57,37 @@ test("bulk product API enforces permissions, atomic validation, revisions and in
     assert.equal((await call("/admin/products/bulk", { ...payload, products: [] }, cookies.admin)).status, 400);
     assert.equal((await call("/admin/products/bulk", { ...payload, products: [selection[0], selection[0]] }, cookies.admin)).status, 400);
     assert.equal((await call("/admin/products/bulk", { action: "discounts", products: selection }, cookies.admin)).status, 400);
-    const invalidPublish = await call("/admin/products/bulk", { action: "publish", products: selection }, cookies.admin);
-    assert.equal(invalidPublish.status, 400); assert.ok(invalidPublish.data.message.includes("BULK-2"));
+    const invalidPublish = await call("/admin/products/bulk", { action: "publish", products: [selection[1]] }, cookies.admin);
+    assert.equal(invalidPublish.status, 201);
+    assert.equal(invalidPublish.data.updated, 0);
+    assert.deepEqual(invalidPublish.data.products, []);
+    assert.equal(invalidPublish.data.skipped[0].code, "BULK-2");
+    assert.ok(invalidPublish.data.skipped[0].reason.includes("ít nhất một ảnh"));
     const stored = async id => (await sql.query('SELECT * FROM bulk_qa.products WHERE id=$1', [id])).rows[0];
     assert.equal((await stored(first.data.id)).published, false);
+    assert.equal((await stored(second.data.id)).revision, selection[1].revision);
     const update = await call("/admin/products/bulk", payload, cookies.sales); assert.equal(update.status, 201, JSON.stringify(update.data));
     assert.equal(update.data.updated, 2);
     const changed = await stored(first.data.id); assert.equal(changed.data.price, 80000); assert.equal(changed.data.b2bDiscount, 65); assert.equal(changed.revision, selection[0].revision + 1);
     assert.equal((await call("/admin/products/bulk", payload, cookies.admin)).status, 409);
     const missing = await call("/admin/products/bulk", { ...payload, products: [...update.data.products.map(({ id, revision }) => ({ id, revision })), { id: "missing", revision: 1 }] }, cookies.admin); assert.equal(missing.status, 404);
-    const published = await call("/admin/products/bulk", { action: "publish", products: [{ id: changed.id, revision: changed.revision }] }, cookies.admin); assert.equal(published.status, 201);
+    const currentSelection = update.data.products.map(({ id, revision }) => ({ id, revision }));
+    const stalePublish = await call("/admin/products/bulk", { action: "publish", products: currentSelection.map(item => item.id === second.data.id ? { ...item, revision: item.revision - 1 } : item) }, cookies.admin);
+    assert.equal(stalePublish.status, 409);
+    assert.equal((await stored(first.data.id)).published, false);
+    const secondBefore = await stored(second.data.id);
+    const unselected = await call("/admin/products", { ...draft, code: "UNSELECTED", slug: "unselected", alternateCode: "" }, cookies.admin); assert.equal(unselected.status, 201);
+    const published = await call("/admin/products/bulk", { action: "publish", products: currentSelection }, cookies.admin); assert.equal(published.status, 201, JSON.stringify(published.data));
+    assert.equal(published.data.updated, 1);
+    assert.equal(published.data.products.length, 1);
+    assert.equal(published.data.products[0].id, first.data.id);
+    assert.deepEqual(published.data.skipped.map(product => product.code), ["BULK-2"]);
     assert.equal((await stored(changed.id)).published, true);
+    assert.deepEqual(await stored(second.data.id), secondBefore);
+    assert.equal((await stored(unselected.data.id)).published, false);
+    const audit = (await sql.query("SELECT detail FROM bulk_qa.audit_events WHERE action='products-bulk-publish' ORDER BY at DESC LIMIT 1")).rows[0].detail;
+    assert.deepEqual(audit.skipped, published.data.skipped);
+    assert.equal(audit.products.length, 1);
     const aliasSearch = await fetch(`${base}/catalog/search?q=NEW-BULK-1&pageSize=10`).then(response => response.json());
     assert.ok(aliasSearch.products.some(product => product.id === changed.id));
     const aliasExact = await fetch(`${base}/catalog/selection?code=NEW-BULK-1`).then(response => response.json());
@@ -86,6 +106,23 @@ test("bulk product API enforces permissions, atomic validation, revisions and in
     assert.equal((await stored(changed.id)).published, false);
     const legacy = await call("/admin/products", { ...draft, code: "LEGACY", slug: "legacy", listPrice: undefined, b2cDiscount: undefined, b2bDiscount: undefined, price: 100000 }, cookies.admin); assert.equal(legacy.status, 201);
     const legacyBulk = await call("/admin/products/bulk", { action: "discounts", products: [choose(legacy)], b2bDiscount: 50 }, cookies.admin); assert.equal(legacyBulk.status, 400);
+    const beforeDiscount = await stored(changed.id);
+    const mixedDiscount = await call("/admin/products/bulk", { action: "discounts", products: [{ id: beforeDiscount.id, revision: beforeDiscount.revision }, choose(legacy)], b2cDiscount: 10 }, cookies.admin);
+    assert.equal(mixedDiscount.status, 400);
+    assert.deepEqual(await stored(changed.id), beforeDiscount);
+    const missingImage = await call("/admin/products", { ...draft, code: "MISSING-IMAGE", slug: "missing-image", alternateCode: "" }, cookies.admin); assert.equal(missingImage.status, 201);
+    await sql.query("UPDATE bulk_qa.products SET data=jsonb_set(data,'{gallery}','[\"/media/uploads/missing.webp\"]') WHERE id=$1", [missingImage.data.id]);
+    const badCategory = await call("/admin/products", { ...draft, code: "BAD-CATEGORY", slug: "bad-category", alternateCode: "" }, cookies.admin); assert.equal(badCategory.status, 201);
+    await sql.query("UPDATE bulk_qa.products SET data=jsonb_set(data,'{category}','\"qa-deleted-category\"') WHERE id=$1", [badCategory.data.id]);
+    const currentGood = await stored(changed.id);
+    const otherIssues = await call("/admin/products/bulk", { action: "publish", products: [{ id: currentGood.id, revision: currentGood.revision }, choose(missingImage), choose(badCategory)] }, cookies.admin);
+    assert.equal(otherIssues.status, 201);
+    assert.equal(otherIssues.data.updated, 1);
+    assert.equal(otherIssues.data.skipped.length, 2);
+    assert.ok(otherIssues.data.skipped.find(product => product.code === "MISSING-IMAGE").reason.includes("không tồn tại"));
+    assert.ok(otherIssues.data.skipped.find(product => product.code === "BAD-CATEGORY").reason.includes("Danh mục"));
+    assert.equal((await stored(missingImage.data.id)).published, false);
+    assert.equal((await stored(badCategory.data.id)).published, false);
     assert.ok((await sql.query("SELECT action FROM bulk_qa.audit_events WHERE action LIKE 'products-bulk-%'")).rowCount >= 3);
     await sql.query("INSERT INTO bulk_qa.products (id,slug,data,published,revision) SELECT 'LIMIT-'||i,'limit-'||i,jsonb_build_object('id','LIMIT-'||i,'code','LIMIT-'||i,'name','Limit test'),false,1 FROM generate_series(1,501) i");
     assert.equal((await fetch(`${base}/admin/products/selection?branch=${encodeURIComponent("Quy Nhơn")}&q=LIMIT-`, { headers: { Cookie: cookies.admin } })).status, 400);
