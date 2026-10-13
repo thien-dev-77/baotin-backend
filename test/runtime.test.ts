@@ -62,6 +62,7 @@ test("Output-only builds include runtime assets, exclude secrets/uploads and ign
       ["certs/prod-ca-2021.crt", "public CA"],
       ["seed/mock.json", "{}"],
       ["media/images/locks/sample.jpg", "sample image"],
+      ["media/imported/fulco/imported.webp", "imported catalog image"],
       ["media/uploads/private.webp", "private upload"],
       [".env", "PRIVATE_ENV=do-not-bundle"],
       ["dist/media/uploads/existing.webp", "keep existing upload"],
@@ -85,6 +86,7 @@ test("Output-only builds include runtime assets, exclude secrets/uploads and ign
       );
     }
     assert.equal(existsSync(resolve(repository, "dist/.env")), false);
+    assert.equal(await readFile(resolve(repository, "dist/media/imported/fulco/imported.webp"), "utf8"), "imported catalog image");
     assert.equal(
       await readFile(
         resolve(repository, "dist/assets/fonts/NotoSans.ttf"),

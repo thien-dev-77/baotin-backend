@@ -17,3 +17,4 @@ test-results/
 *.key
 /media/uploads/
 /.localdb/
+/backups/

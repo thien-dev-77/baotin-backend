@@ -11,8 +11,6 @@ import {
   Post,
   Req,
 } from "@nestjs/common";
-import { access } from "node:fs/promises";
-import { resolve } from "node:path";
 import { AuthService, type AuthRequest } from "../auth/auth.service";
 import { DatabaseService } from "../database/database.service";
 import {
@@ -20,7 +18,7 @@ import {
   CategoryEntity,
   ProductEntity,
 } from "../database/entities";
-import { runtimeAssetPath } from "../runtime-assets";
+import { assertProductImageExists } from "../media/product-media";
 import { CategoryDto } from "./category.dto";
 import { categoryView, orderedCategories } from "./category.rules";
 
@@ -105,14 +103,7 @@ export class AdminCategoriesController {
       throw new BadRequestException("Danh mục hiển thị cần ảnh đại diện.");
     if (input.image) {
       try {
-        await access(
-          resolve(
-            runtimeAssetPath(process.env.MEDIA_DIR || "media"),
-            input.image.startsWith("/images/")
-              ? input.image.slice(1)
-              : input.image.slice(7),
-          ),
-        );
+        await assertProductImageExists(input.image);
       } catch {
         throw new BadRequestException(
           "Ảnh không tồn tại trên backend. Vui lòng tải ảnh lại.",

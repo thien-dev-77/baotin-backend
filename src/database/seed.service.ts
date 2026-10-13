@@ -15,6 +15,12 @@ export class SeedService implements OnApplicationBootstrap {
   constructor(private readonly db: DatabaseService) {}
   async onApplicationBootstrap() {
     if (process.env.SEED_MOCK_DATA !== "true") return;
+    const schema = process.env.DB_SCHEMA || "baotin_app";
+    const [guard] = await this.db.source.query("SELECT to_regclass($1) AS name", [`${schema}.mock_seed_cleanup`]);
+    if (guard.name) {
+      const rows = await this.db.source.query(`SELECT id FROM "${schema}".mock_seed_cleanup WHERE id = $1`, ["mock-catalog-v1"]);
+      if (rows.length) { console.log("Mock seed skipped: catalog cleanup has been completed."); return; }
+    }
     if (process.env.NODE_ENV === "production") throw new Error("Mock seed is disabled in production.");
     if (!process.env.SEED_PASSWORD || process.env.SEED_PASSWORD.length < 12 || process.env.SEED_PASSWORD.startsWith("replace-")) throw new Error("SEED_PASSWORD requires at least 12 non-placeholder characters.");
     const fixture = JSON.parse(await readFile(runtimeAssetPath("seed/mock.json"), "utf8")) as { products: Product[]; categories: Category[]; customers: AdminCustomer[]; orders: AdminOrder[]; approvals: AdminApproval[] };

@@ -9,6 +9,7 @@ import { AuthService, type AuthRequest } from "../auth/auth.service";
 import { DatabaseService } from "../database/database.service";
 import { AuditEntity, ProductEntity } from "../database/entities";
 import { runtimeAssetPath } from "../runtime-assets";
+import { MAX_PRODUCT_GALLERY } from "../catalog/product.constants";
 
 @Controller("media")
 export class MediaController {
@@ -67,7 +68,7 @@ export class MediaController {
       await this.db.transaction(async (manager) => {
         const product = await manager.getRepository(ProductEntity).findOneBy({ id });
         if (!product) throw new NotFoundException("Không tìm thấy sản phẩm.");
-        product.data = { ...product.data, image: url, gallery: [url, ...product.data.gallery].slice(0, 10) };
+        product.data = { ...product.data, image: url, gallery: [url, ...product.data.gallery].slice(0, MAX_PRODUCT_GALLERY) };
         await manager.getRepository(ProductEntity).save(product);
         await manager.getRepository(AuditEntity).save({ actorId: user.id, action: "product-image", resourceId: id, detail: { url } });
       });

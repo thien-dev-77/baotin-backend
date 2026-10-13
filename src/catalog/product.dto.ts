@@ -2,6 +2,7 @@ import { Transform } from "class-transformer";
 import { ArrayMaxSize, ArrayUnique, IsArray, IsBoolean, IsInt, IsNumber, IsOptional, IsString, Length, Matches, Max, MaxLength, Min, ValidateNested } from "class-validator";
 import { Type } from "class-transformer";
 import { MAX_PRODUCT_PRICE, MAX_PRODUCT_DISCOUNT } from "./product-pricing";
+import { MAX_PRODUCT_GALLERY } from "./product.constants";
 
 const trim = Transform(({ value }) => typeof value === "string" ? value.trim() : value);
 export const productImagePattern = /^\/(?:images|media\/(?:images|uploads))\/[a-zA-Z0-9/_-]+\.(?:jpe?g|png|webp)$/;
@@ -31,7 +32,13 @@ export class ProductDto {
   @trim @IsString() @MaxLength(100) size!: string;
   @trim @IsString() @MaxLength(100) origin!: string;
   @trim @IsString() @MaxLength(10000) description!: string;
-  @IsArray() @ArrayMaxSize(10) @ArrayUnique() @IsString({ each: true }) @Matches(productImagePattern, { each: true }) gallery!: string[];
+  @IsOptional() @trim @IsString() @MaxLength(80) alternateCode?: string;
+  @IsOptional() @trim @IsString() @MaxLength(300) @Matches(/^(?:|https:\/\/[^\s]+)$/) sourceUrl?: string;
+  @IsOptional() @trim @IsString() @MaxLength(2000) shortDescription?: string;
+  @IsOptional() @trim @IsString() @MaxLength(10000) technicalDetails?: string;
+  @IsOptional() @trim @IsString() @MaxLength(20000) usageGuide?: string;
+  @IsOptional() @trim @IsString() @MaxLength(500) warranty?: string;
+  @IsArray() @ArrayMaxSize(MAX_PRODUCT_GALLERY) @ArrayUnique() @IsString({ each: true }) @Matches(productImagePattern, { each: true }) gallery!: string[];
   @IsBoolean() featured!: boolean;
   @IsBoolean() published!: boolean;
   @IsOptional() @trim @IsString() @Length(1, 100) variantGroupId?: string;

@@ -1,12 +1,13 @@
-import { BadRequestException, Body, ConflictException, Controller, ForbiddenException, NotFoundException, Param, Patch, Post, Req } from "@nestjs/common";
+import { BadRequestException, Body, ConflictException, Controller, ForbiddenException, Get, NotFoundException, Param, Patch, Post, Query, Req } from "@nestjs/common";
 import { randomUUID } from "node:crypto";
-import { access } from "node:fs/promises";
-import { resolve } from "node:path";
 import { AuthService, type AuthRequest } from "../auth/auth.service";
 import { DatabaseService } from "../database/database.service";
 import { AuditEntity, CategoryEntity, OrderEntity, ProductEntity } from "../database/entities";
 import { IntegrationLinkEntity, InventoryEntity } from "../database/operations.entities";
-import { runtimeAssetPath } from "../runtime-assets";
+import { assertProductImageExists } from "../media/product-media";
+import { ProductBulkDto, ProductSelectionDto } from "./product-bulk.dto";
+import { ProductBulkService } from "./product-bulk.service";
+import { AdminBrowseService } from "../admin/admin-browse.service";
 import type { Product } from "../types/domain.types";
 import { ProductDto } from "./product.dto";
 import { assertPublishable } from "./product.rules";
@@ -15,7 +16,19 @@ import { validateVariantGroup, attributeKey, variantDimension } from "./product-
 
 @Controller("admin/products")
 export class AdminProductsController {
-  constructor(private readonly auth: AuthService, private readonly db: DatabaseService) {}
+  constructor(private readonly auth: AuthService, private readonly db: DatabaseService, private readonly bulk: ProductBulkService, private readonly browse: AdminBrowseService) {}
+
+  @Get("selection") async selectProducts(@Query() input: ProductSelectionDto, @Req() request: AuthRequest) {
+    const user = (await this.auth.authenticate(request))!;
+    if (!["admin", "boss", "sales"].includes(user.role)) throw new ForbiddenException();
+    return this.browse.productSelection(user, input);
+  }
+
+  @Post("bulk") async bulkUpdate(@Body() input: ProductBulkDto, @Req() request: AuthRequest) {
+    const user = (await this.auth.authenticate(request))!;
+    if (!["admin", "boss", "sales"].includes(user.role)) throw new ForbiddenException();
+    return this.bulk.apply(input, user.id);
+  }
 
   @Post() create(@Body() input: ProductDto, @Req() request: AuthRequest) {
     return this.save(input, request);
@@ -50,8 +63,7 @@ export class AdminProductsController {
         if (hasOrder || hasStock || hasLink) throw new ConflictException("Không đổi mã hàng hoặc đơn vị khi sản phẩm đã có đơn, sổ kho hoặc liên kết KiotViet.");
       }
       for (const url of input.gallery) {
-        const relative = url.startsWith("/images/") ? url.slice(1) : url.slice("/media/".length);
-        try { await access(resolve(runtimeAssetPath(process.env.MEDIA_DIR || "media"), relative)); }
+        try { await assertProductImageExists(url); }
         catch { throw new BadRequestException("Ảnh không tồn tại trên backend. Vui lòng tải ảnh lại."); }
       }
       const { revision: _revision, published, ...fields } = input;

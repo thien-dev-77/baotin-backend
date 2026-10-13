@@ -16,6 +16,24 @@ Quan ly them/sua san pham, bo anh va che do rieng tu:
 Gia niem yet, CK B2C/B2B va bao gia theo khach:
 [Product Pricing](docs/product-pricing.md).
 
+## Don Catalog Mock 13/10/2026
+
+Da sao luu va don 63 san pham, 8 danh muc va 18 don fixture trong Supabase.
+Bang gia B2B mau da tat; noi dung tro den danh muc da xoa duoc giu private
+de cap nhat truoc khi cong khai lai. Database guard ngan seed tao lai catalog
+mock; tai khoan dang nhap va khach hang duoc giu nguyen.
+Cong cu kiem ke, cleanup transaction va restore backup:
+[Mock Catalog Cleanup](docs/mock-catalog-cleanup.md).
+`npm run cleanup:mock-catalog` chi doc; them `--apply` moi ghi database.
+Backup nam trong `backups/`, ignored trong Git.
+
+Import sheet dau Fulco da tao 242 SKU private, 28 danh muc an va 41 nhom
+bien the, CK trong file ap dung cho ca B2C/B2B. Cong cu import, ket qua anh
+va API publish/private/CK hang loat: [Fulco Import](docs/fulco-import.md).
+527 anh import duoc giu trong `media/imported/fulco/` de build/redeploy van
+phuc vu path da luu. API `POST /api/admin/products/bulk` nhan toi da 500 SKU
+kem revision; khong tai lai `/admin/state` cho thao tac nay.
+
 ## Cap Nhat 12/10/2026
 
 Code moi duoc push len nhanh **develop** cua ca backend va frontend.

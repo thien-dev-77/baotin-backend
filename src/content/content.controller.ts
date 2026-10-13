@@ -22,8 +22,6 @@ import {
   Min,
 } from "class-validator";
 import { randomUUID } from "node:crypto";
-import { access } from "node:fs/promises";
-import { resolve } from "node:path";
 import { AuthService, type AuthRequest } from "../auth/auth.service";
 import { DatabaseService } from "../database/database.service";
 import { AuditEntity, CategoryEntity } from "../database/entities";
@@ -31,7 +29,7 @@ import {
   ContentEntity,
   type ContentKind,
 } from "../database/experience.entities";
-import { runtimeAssetPath } from "../runtime-assets";
+import { assertProductImageExists } from "../media/product-media";
 import { seedContent } from "./content-seed";
 
 class ContentDto {
@@ -137,14 +135,7 @@ export class AdminContentController {
       )
         throw new BadRequestException("Chọn ảnh đã tải lên backend.");
       try {
-        await access(
-          resolve(
-            runtimeAssetPath(process.env.MEDIA_DIR || "media"),
-            input.image.startsWith("/images/")
-              ? input.image.slice(1)
-              : input.image.slice(7),
-          ),
-        );
+        await assertProductImageExists(input.image);
       } catch {
         throw new BadRequestException("Ảnh không tồn tại.");
       }

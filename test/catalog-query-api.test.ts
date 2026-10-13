@@ -72,6 +72,41 @@ test("Paginated catalog and historical order snapshots", { timeout: 120000 }, as
       const bootstrap = (await guest.call("/catalog/bootstrap")).data;
       assert.ok(bootstrap.products.length <= 55); assert.ok(bootstrap.brands.includes("QA Brand B"));
     });
+    await t.test("Cards receive published review aggregates without pending/rejected reviews", async () => {
+      for (const [stars, status] of [[5, "published"], [3, "published"], [1, "pending"], [1, "rejected"]] as const) {
+        await sql.query(`INSERT INTO "${schema}".product_reviews (id,"productId","userId",name,stars,text,status,revision) VALUES ($1,$2,$3,$4,$5,$6,$7,1)`, [randomUUID(), fixtures[0].id, randomUUID(), "QA Reviewer", stars, "QA review text", status]);
+      }
+      const selection = await guest.call(`/catalog/selection?ids=${fixtures[0].id}&ids=${fixtures[1].id}`);
+      assert.deepEqual(selection.data.products.find((product: Product) => product.id === fixtures[0].id).reviewSummary, { rating: 4, count: 2 });
+      assert.deepEqual(selection.data.products.find((product: Product) => product.id === fixtures[1].id).reviewSummary, { rating: 0, count: 0 });
+      const search = await guest.call("/catalog/search?q=qa%20catalog&sort=low");
+      assert.deepEqual(search.data.products[0].reviewSummary, { rating: 4, count: 2 });
+      assert.equal((await guest.call("/catalog/selection?ids=QA-PRIVATE")).data.products.length, 0);
+    });
+    await t.test("Homepage picks five distinct variant groups from managed categories, excluding hidden/private rows", async () => {
+      const categories = ["qa-home-visible", "qa-home-hidden"];
+      for (const slug of categories) {
+        await sql.query(`INSERT INTO "${schema}".categories (slug,data,revision) VALUES ($1,$2,1)`, [slug, { slug, name: slug, image: "", description: "", subcategories: ["QA subcategory"], visible: slug === categories[0], sortOrder: -10 }]);
+      }
+      for (let index = 0; index < 12; index++) {
+        const id = `QA-HOME-${String(index).padStart(2, "0")}`;
+        const data = { ...fixtures[0], id, code: id, slug: id.toLowerCase(), category: categories[0], subcategory: "QA subcategory", variantGroupId: index < 6 ? "QA-HOME-00" : undefined, variantAttributes: index < 6 ? [{ name: "Kích thước", value: `${index}mm` }] : undefined };
+        await sql.query(`INSERT INTO "${schema}".products (id,slug,data,published,revision) VALUES ($1,$2,$3,$4,1)`, [id, data.slug, data, index !== 11]);
+      }
+      const hidden = { ...fixtures[0], id: "QA-HOME-HIDDEN", slug: "qa-home-hidden", category: categories[1] };
+      await sql.query(`INSERT INTO "${schema}".products (id,slug,data,published,revision) VALUES ($1,$2,$3,true,1)`, [hidden.id, hidden.slug, hidden]);
+      const response = await guest.call("/catalog/bootstrap");
+      assert.equal(response.status, 200, JSON.stringify(response.data));
+      const cards: Product[] = response.data.products.filter((product: Product) => product.category === categories[0]);
+      assert.equal(cards.length, 5);
+      assert.equal(new Set(cards.map(product => product.variantGroupId || product.id)).size, 5);
+      assert.ok(cards.some(product => product.id === "QA-HOME-00"));
+      assert.ok(!response.data.products.some((product: Product) => product.id === "QA-HOME-11"));
+      assert.ok(!response.data.categories.some((category: { slug: string }) => category.slug === categories[1]));
+      assert.ok(response.data.products.length <= 55);
+      await sql.query(`DELETE FROM "${schema}".products WHERE data->>'category' = ANY($1::text[])`, [categories]);
+      await sql.query(`DELETE FROM "${schema}".categories WHERE slug = ANY($1::text[])`, [categories]);
+    });
     await t.test("B2B price filtering/sorting uses the same customer policy as checkout", async () => {
       const customer = (await admin.call("/admin/state")).data.customers.find((row: { id: string }) => row.id === "KH001");
       const policy = { name: "QA customer prices", scope: "customer", target: "KH001", branch: "Quy Nhơn", startsOn: "2000-01-01", endsOn: null, active: true, discount: 0, prices: { [fixtures[64].id]: 1 } };

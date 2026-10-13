@@ -2,13 +2,18 @@
   "name": "bao-tin-api",
   "version": "0.1.0",
   "private": true,
-  "overrides": { "shell-quote": "1.11.0" },
+  "overrides": {
+    "shell-quote": "1.11.0"
+  },
   "scripts": {
     "dev": "npm run build && concurrently --kill-others -n compiler,api \"tsc -p tsconfig.json --watch --preserveWatchOutput\" \"node --watch dist/main.js\"",
     "build": "tsc -p tsconfig.json && node scripts/copy-runtime-assets.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "start": "node dist/main.js",
     "fixtures": "node scripts/export-fixtures.mjs",
+    "audit:mock-catalog": "node scripts/audit-mock-catalog.mjs",
+    "cleanup:mock-catalog": "node scripts/cleanup-mock-catalog.mjs",
+    "import:fulco": "npm run build && node scripts/import-fulco.mjs",
     "test": "npm run build && tsx --test test/domain.test.ts test/runtime.test.ts test/operations.test.ts test/product-pricing.test.ts",
     "test:operations": "npm run build && tsx --test test/operations-api.test.ts",
     "test:products": "npm run build && tsx --test test/products-api.test.ts",
@@ -17,6 +22,9 @@
     "test:categories": "npm run build && tsx --test test/categories-api.test.ts",
     "test:catalog": "npm run build && tsx --test test/catalog-query-api.test.ts",
     "test:admin-resources": "npm run build && tsx --test test/admin-resources-api.test.ts",
+    "test:mock-cleanup": "npm run build && node --test test/mock-cleanup.test.mjs",
+    "test:fulco": "npm run build && node --test test/fulco-import.test.mjs",
+    "test:product-bulk": "npm run build && node --test test/product-bulk.test.mjs",
     "test:api": "tsx --test test/api.test.ts",
     "db:local": "tsx scripts/local-postgres.ts",
     "dev:local": "ENV_FILE=.env.local npm run dev"
@@ -31,6 +39,7 @@
     "class-validator": "^0.14.2",
     "cookie-parser": "^1.4.7",
     "dotenv": "^17.2.3",
+    "exceljs": "^4.4.0",
     "helmet": "^8.1.0",
     "nodemailer": "^10.0.14",
     "pdfkit": "^0.20.2",

@@ -25,6 +25,7 @@ async function main() {
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }));
   const media = runtimeAssetPath(process.env.MEDIA_DIR || "media");
   await mkdir(resolve(media, "uploads"), { recursive: true });
+  app.useStaticAssets(runtimeAssetPath("media/imported/fulco"), { prefix: "/media/uploads/", dotfiles: "deny", index: false, redirect: false, maxAge: "1d" });
   app.useStaticAssets(media, { prefix: "/media/", dotfiles: "deny", index: false, redirect: false, maxAge: "1d" });
   app.setGlobalPrefix("api");
   const host = process.env.HOST || (process.env.NODE_ENV === "production" ? "0.0.0.0" : "127.0.0.1");
