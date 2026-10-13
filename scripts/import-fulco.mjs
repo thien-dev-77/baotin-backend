@@ -6,7 +6,7 @@ import { config } from "dotenv";
 import { JwtService } from "@nestjs/jwt";
 import pg from "pg";
 import { parseFulcoWorkbook } from "../dist/catalog/fulco-import.js";
-import { buildFulcoImport } from "../dist/catalog/fulco-import-plan.js";
+import { buildFulcoImport, DEFAULT_FULCO_IMPORT_OPTIONS } from "../dist/catalog/fulco-import-plan.js";
 import { exportImportedMedia, prepareFulcoMedia } from "./fulco-media.mjs";
 
 const IMPORT_ACTION = "fulco-catalog-import";
@@ -67,9 +67,9 @@ async function main() {
   config({ path: process.env.ENV_FILE || ".env", quiet: true });
   const file = argument("--file");
   if (!file) throw new Error("Use --file PATH_TO_FULCO_XLSX.");
-  const target = argument("--discount-target") || "both";
+  const target = argument("--discount-target") || DEFAULT_FULCO_IMPORT_OPTIONS.discountTarget;
   if (!["both", "b2b"].includes(target)) throw new Error("Discount target must be both or b2b.");
-  const options = { discountTarget: target, b2cDiscount: Number(argument("--b2c-discount") || 0), publish: process.argv.includes("--publish-valid") };
+  const options = { discountTarget: target, b2cDiscount: Number(argument("--b2c-discount") ?? DEFAULT_FULCO_IMPORT_OPTIONS.b2cDiscount), publish: process.argv.includes("--publish-valid") };
   const workbook = await parseFulcoWorkbook(await readFile(resolve(file)));
   const key = importKey(workbook.hash, options);
   const directory = resolve("backups", "fulco-import", workbook.hash.slice(0, 16));

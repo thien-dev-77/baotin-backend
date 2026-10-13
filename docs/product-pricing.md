@@ -1,5 +1,32 @@
 # Product Pricing - 12 October 2026
 
+## Current Catalog
+
+By explicit owner confirmation, the 242 existing SKU use B2C discount 0%:
+retail price equals list price, with no crossed-out old price or retail sale badge.
+Their B2B discounts remain 60% (235 SKU) or 65% (7 SKU). B2B policy priority and
+previous order snapshots are unchanged. Discounts remain configurable per SKU
+in admin; there is no hardcoded frontend override or startup rewrite.
+
+The one-time maintenance command previews before writing:
+
+```sh
+npm run catalog:reset-retail-discounts
+npm run catalog:reset-retail-discounts -- --apply
+npm run test:retail-discounts
+```
+
+Apply uses the application command lock, row locks and revision checks in one
+transaction. A checksummed 0600 backup of all product records is saved under
+Git-ignored `backups/retail-pricing/` before changes. Only `price`, `oldPrice`,
+`b2cDiscount` and revision change; B2B, publication, stock, images, categories
+and variants are protected. Audit `catalog-retail-discount-reset` with resource
+`catalog-b2c-zero-v1` prevents a repeated command from overriding later admin
+changes. No command runs automatically during build or application startup.
+
+Future Fulco imports default to B2B-only workbook discounts, B2C 0% and private
+products. Existing SKU are never overwritten by reimporting the workbook.
+
 ## Write Contract
 
 `POST /api/admin/products` and `PATCH /api/admin/products/:id` accept the

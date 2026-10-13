@@ -8,11 +8,13 @@ recomputed from list price. `0.6` in Excel means `60%`, not `0.6%`.
 
 ## Imported Data
 
-The Supabase `baotin_app` schema contains 242 private products, 28 hidden
-categories and 41 variant groups. User-selected configuration is CK from
-the workbook for both B2C and B2B, all products private:
+The initial import into Supabase `baotin_app` created 242 private products,
+28 hidden categories and 41 variant groups. The initial user-selected import
+configuration applied workbook discounts to both B2C and B2B. It was later
+changed explicitly to B2C 0% (full list price), while preserving B2B:
 
-- 235 SKU use 60% B2C and 60% B2B; 7 use 65% for both.
+- All 242 SKU use 0% B2C; 235 retain 60% B2B and 7 retain 65% B2B.
+  Existing customer/group policies and order snapshots remain unchanged.
 - 223 products have stored images; 19 source rows have no gallery/name.
 - New imports start with zero stock because the workbook contains no inventory quantities.
   The existing catalog was subsequently set to 100 per branch by explicit user
@@ -66,17 +68,18 @@ Run from the backend repo. Preview creates a local report without contacting
 the database or downloading images:
 
 ```sh
-npm run import:fulco -- --file ../excel/Bang_Bao_Gia_Fulco_Bao_Tin_Moi_Nhat.xlsx --discount-target both
+npm run import:fulco -- --file ../excel/Bang_Bao_Gia_Fulco_Bao_Tin_Moi_Nhat.xlsx
 ```
 
 Apply using the configured database and deployed backend:
 
 ```sh
-npm run import:fulco -- --file ../excel/Bang_Bao_Gia_Fulco_Bao_Tin_Moi_Nhat.xlsx --discount-target both --apply --remote-api https://baotin-api.devops-testing.site --origin https://baotin-b2b.devops-testing.site
+npm run import:fulco -- --file ../excel/Bang_Bao_Gia_Fulco_Bao_Tin_Moi_Nhat.xlsx --apply --remote-api https://baotin-api.devops-testing.site --origin https://baotin-b2b.devops-testing.site
 ```
 
-Private is the default. `--discount-target b2b --b2c-discount 0` applies the
-workbook rate to B2B only. `--publish-valid` explicitly publishes eligible
+Private and `--discount-target b2b --b2c-discount 0` are the defaults: workbook
+rates apply to B2B only. `--discount-target both` requires an explicit operator
+choice to copy workbook rates to B2C as well. `--publish-valid` explicitly publishes eligible
 products; it was not used for this import. Existing SKU/slugs/categories are
 never overwritten. Product/category inserts and audit are one transaction;
 initial revisions are set explicitly. An operator session using an existing
@@ -119,7 +122,7 @@ product content, stock ledger or `/admin/state`. Only product managers can use i
 {
   "action": "discounts",
   "products": [{ "id": "PRODUCT_ID", "revision": 1 }],
-  "b2cDiscount": 60,
+  "b2cDiscount": 0,
   "b2bDiscount": 65
 }
 ```

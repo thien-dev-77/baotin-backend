@@ -30,11 +30,14 @@ Cong cu kiem ke, cleanup transaction va restore backup:
 Backup nam trong `backups/`, ignored trong Git.
 
 Import sheet dau Fulco da tao 242 SKU private, 28 danh muc an va 41 nhom
-bien the, CK trong file ap dung cho ca B2C/B2B. Cong cu import, ket qua anh
+bien the. Cau hinh gia hien tai: B2C 0% (gia niem yet), B2B giu CK 60%/65%
+trong file; bang gia rieng theo khach/nhom van uu tien. Cong cu import, ket qua anh
 va API publish/private/CK hang loat: [Fulco Import](docs/fulco-import.md).
 527 anh import duoc giu trong `media/imported/fulco/` de build/redeploy van
 phuc vu path da luu. API `POST /api/admin/products/bulk` nhan toi da 500 SKU
 kem revision; khong tai lai `/admin/state` cho thao tac nay.
+`npm run catalog:reset-retail-discounts` kiem ke; them `--apply` moi cap nhat
+B2C ve 0% mot lan, sao luu truoc va khong sua don hang cu. Xem [Product Pricing](docs/product-pricing.md).
 
 ## Cap Nhat 12/10/2026
 

@@ -9,7 +9,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createServer } from "node:net";
 import { parseFulcoWorkbook } from "../dist/catalog/fulco-import.js";
-import { buildFulcoImport } from "../dist/catalog/fulco-import-plan.js";
+import { buildFulcoImport, DEFAULT_FULCO_IMPORT_OPTIONS } from "../dist/catalog/fulco-import-plan.js";
 import { downloadFulcoImage } from "../scripts/fulco-media.mjs";
 import { commitFulcoImport, importKey } from "../scripts/import-fulco.mjs";
 
@@ -53,6 +53,11 @@ test("Fulco first-sheet parsing retains content and interprets Excel percentage 
   assert.equal(first.price, 1424000);
   assert.equal(first.b2cDiscount, 60);
   assert.equal(first.b2bDiscount, 60);
+  const defaults = buildFulcoImport(parsed, imageURLs, DEFAULT_FULCO_IMPORT_OPTIONS);
+  assert.ok(defaults.products.every(item => item.data.b2cDiscount === 0 && item.data.price === item.data.listPrice && !item.published));
+  assert.equal(defaults.products[0].data.b2bDiscount, 60);
+  assert.equal(defaults.products[2].data.b2bDiscount, 65);
+  assert.equal(defaults.products[0].data.oldPrice, undefined);
   assert.equal(first.gallery.length, 12);
   assert.equal(first.technicalDetails, parsed.rows[0].technicalDetails);
   assert.equal(first.variantAttributes[0].value, "600mm");

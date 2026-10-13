@@ -11,6 +11,7 @@ import { fulcoVariantGroups, importSlug, type FulcoWorkbook } from "./fulco-impo
 import { sentenceCaseProductName } from "./product-name";
 
 export type FulcoImportOptions = { discountTarget: "b2b" | "both"; b2cDiscount: number; publish: boolean };
+export const DEFAULT_FULCO_IMPORT_OPTIONS: Readonly<FulcoImportOptions> = { discountTarget: "b2b", b2cDiscount: 0, publish: false };
 export type FulcoImportPlan = { categories: Category[]; products: { data: Product; published: boolean }[]; warnings: { row: number; code: string; messages: string[] }[]; variantGroups: number };
 
 function categorySlug(name: string) {
