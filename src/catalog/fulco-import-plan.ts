@@ -8,6 +8,7 @@ import { assertPublishable } from "./product.rules";
 import { resolveProductPricing } from "./product-pricing";
 import { validateVariantGroup } from "./product-variants";
 import { fulcoVariantGroups, importSlug, type FulcoWorkbook } from "./fulco-import";
+import { sentenceCaseProductName } from "./product-name";
 
 export type FulcoImportOptions = { discountTarget: "b2b" | "both"; b2cDiscount: number; publish: boolean };
 export type FulcoImportPlan = { categories: Category[]; products: { data: Product; published: boolean }[]; warnings: { row: number; code: string; messages: string[] }[]; variantGroups: number };
@@ -41,7 +42,7 @@ export function buildFulcoImport(workbook: FulcoWorkbook, imageURLs: Map<string,
     const slug = `${importSlug(row.name).slice(0, 198 - suffix.length).replace(/-$/, "")}-${suffix}`;
     const published = options.publish && !row.missingName && Boolean(gallery.length && row.specification);
     const payload = {
-      name: row.name, code: row.code, slug, category: category.slug, subcategory: "", brand: "Fulco", unit: row.unit,
+      name: sentenceCaseProductName({ name: row.name, code: row.code, alternateCode: row.alternateCode, brand: "Fulco" }), code: row.code, slug, category: category.slug, subcategory: "", brand: "Fulco", unit: row.unit,
       ...pricing, specification: row.specification, material: row.material, color: row.color, size: row.size, origin: "",
       description: row.description, alternateCode: row.alternateCode, sourceUrl: row.sourceUrl,
       shortDescription: row.shortDescription, technicalDetails: row.technicalDetails, usageGuide: row.usageGuide, warranty: row.warranty,

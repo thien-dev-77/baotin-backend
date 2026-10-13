@@ -47,6 +47,9 @@ test("Fulco first-sheet parsing retains content and interprets Excel percentage 
   assert.ok(plan.products.every(item => !item.published && item.data.stock === 0));
   assert.ok(plan.categories.every(item => item.visible === false));
   const first = plan.products[0].data;
+  const uppercase = structuredClone(parsed);
+  uppercase.rows[0].name = "GIÁ BÁT INOX FULCO";
+  assert.equal(buildFulcoImport(uppercase, imageURLs, options).products[0].data.name, "Giá bát inox Fulco");
   assert.equal(first.price, 1424000);
   assert.equal(first.b2cDiscount, 60);
   assert.equal(first.b2bDiscount, 60);

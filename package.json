@@ -16,6 +16,8 @@
     "import:fulco": "npm run build && node scripts/import-fulco.mjs",
     "catalog:normalize-fulco": "npm run build && node scripts/normalize-fulco-categories.mjs",
     "catalog:repair-homepage": "npm run build && node scripts/repair-homepage.mjs",
+    "catalog:refresh-stock-names": "npm run build && node scripts/refresh-catalog.mjs",
+    "test:catalog-refresh": "npm run build && node --test test/catalog-refresh.test.mjs",
     "test:homepage-repair": "npm run build && node --test test/homepage-repair.test.mjs",
     "test:category-tree": "npm run build && tsx --test test/category-tree.test.ts",
     "test:category-normalization": "npm run build && node --test test/category-normalization.test.mjs",

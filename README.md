@@ -4,6 +4,8 @@ Customer profiles and phone onboarding: [Customer Management](docs/customer-mana
 
 Category management and dynamic public navigation: [Category Management](docs/category-management.md).
 
+Initial stock 100 and natural product names: [Catalog Stock And Names](docs/catalog-stock-names.md).
+
 Scoped admin data, private frontend cache and compact commands: [Admin Performance](docs/admin-performance.md).
 
 NestJS 11, TypeScript, TypeORM PostgreSQL va JWT HttpOnly cookie.

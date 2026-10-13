@@ -14,7 +14,9 @@ the workbook for both B2C and B2B, all products private:
 
 - 235 SKU use 60% B2C and 60% B2B; 7 use 65% for both.
 - 223 products have stored images; 19 source rows have no gallery/name.
-- Stock is zero because the workbook contains no inventory quantities.
+- New imports start with zero stock because the workbook contains no inventory quantities.
+  The existing catalog was subsequently set to 100 per branch by explicit user
+  confirmation; see [Stock and name update](catalog-stock-names.md).
 - 527 distinct converted images were uploaded to the deployed backend.
 - 8 source images were not converted: 1 exceeds 50 MB and 7 contain JPEG
   decoding errors. Other gallery images were retained; exact URLs and affected
