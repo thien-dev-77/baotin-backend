@@ -114,19 +114,29 @@ test("Scoped admin resources and compact commands", { timeout: 120000 }, async t
     });
     await t.test("Product pages are SQL bounded, searchable without accents and stable", async () => {
       const sample = await db.source.getRepository(ProductEntity).findOneByOrFail({ id: "LED-12V-8W" });
-      await db.source.getRepository(ProductEntity).insert(Array.from({ length: 55 }, (_, index) => ({ id: `browse-qa-${index}`, slug: `browse-qa-${index}`, data: { ...sample.data, id: `browse-qa-${index}`, code: `BROWSE-${index}`, name: `Sản phẩm phân trang QA ${String(index).padStart(3, "0")}` }, published: index % 2 === 0 })));
+      const longContent = "Nội dung dài không dùng trong danh sách. ".repeat(1000);
+      await db.source.getRepository(ProductEntity).insert(Array.from({ length: 55 }, (_, index) => ({ id: `browse-qa-${index}`, slug: `browse-qa-${index}`, data: { ...sample.data, id: `browse-qa-${index}`, code: `BROWSE-${index}`, name: `Sản phẩm phân trang QA ${String(index).padStart(3, "0")}`, subcategory: index % 2 === 0 ? "Nhóm QA A" : "Nhóm QA B", description: longContent, technicalDetails: longContent, usageGuide: longContent }, published: index % 2 === 0 })));
       const first = await admin.call(browsePath("products", { q: "san pham phan trang QA", pageSize: "10" }));
       const second = await admin.call(browsePath("products", { q: "san pham phan trang QA", page: "2", pageSize: "10" }));
       assert.equal(first.status, 200, JSON.stringify(first.data));
       assert.equal(first.data.pagination.total, 55); assert.equal(first.data.products.length, 10);
       assert.equal(second.data.products.length, 10);
       assert.ok(!second.data.products.some((row: { id: string }) => first.data.products.some((item: { id: string }) => item.id === row.id)));
+      assert.ok(first.data.products.every((row: Record<string, unknown>) => row.description === undefined && row.technicalDetails === undefined && row.usageGuide === undefined));
+      assert.equal((await db.source.getRepository(ProductEntity).findOneByOrFail({ id: "browse-qa-0" })).data.description, longContent);
+      assert.ok(JSON.stringify(first.data).length < 50000);
+      const grouped = await admin.call(browsePath("products", { q: "san pham phan trang QA", category: sample.data.category, subcategory: "Nhóm QA A", status: "published" }));
+      assert.equal(grouped.status, 200, JSON.stringify(grouped.data)); assert.equal(grouped.data.pagination.total, 28);
+      assert.ok(grouped.data.products.every((row: { category: string; subcategory: string }) => row.category === sample.data.category && row.subcategory === "Nhóm QA A"));
+      const last = await admin.call(browsePath("products", { q: "san pham phan trang QA", page: "999" }));
+      assert.equal(last.data.pagination.page, 6); assert.equal(last.data.products.length, 5);
       assert.equal((await admin.call(browsePath("products", { q: "BROWSE-54", status: "published" }))).data.pagination.total, 1);
       const browse = new AdminBrowseService(db, new LedgerService(db));
       queries.length = 0;
       await browse.browse(user, { resource: "products", branch: "Quy Nhơn", page: 1, pageSize: 10 });
       assert.ok(queries.some(query => /FROM .*products.*LIMIT 10/.test(query)), queries.join("\n"));
       assert.ok(!queries.some(query => query.includes('"customers"')));
+      assert.equal(queries.filter(query => query.includes('"categories"')).length, 1);
     });
     await t.test("All-time order search and targeted details include pending orders older than 90 days", async () => {
       const repository = db.source.getRepository(OrderEntity);

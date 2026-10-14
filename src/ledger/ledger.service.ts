@@ -43,6 +43,26 @@ export function reservedQuantities(orders: AdminOrder[], except?: string) {
 @Injectable()
 export class LedgerService {
   constructor(private readonly db: DatabaseService) {}
+  private async reservedForProducts(productIds: string[], branch: string, manager: EntityManager, except?: string) {
+    const orders = manager.getRepository(OrderEntity).createQueryBuilder("o").select("o.data->'items'", "items")
+      .where("o.branch = :branch", { branch }).andWhere("o.data->>'status' IN (:...reservedStages)", { reservedStages });
+    if (except) orders.andWhere("o.id <> :except", { except });
+    const [query, parameters] = orders.getQueryAndParameters();
+    // Keep only the first occurrence of a SKU in each order, matching legacy
+    // reservation semantics, and return aggregates only for the requested SKUs.
+    const rows: { productId: string; reserved: string }[] = await manager.query(`
+      SELECT item->>'productId' AS "productId", SUM((item->>'quantity')::bigint) AS reserved
+      FROM (${query}) orders
+      CROSS JOIN LATERAL (
+        SELECT DISTINCT ON (item->>'productId') item
+        FROM jsonb_array_elements(orders.items) WITH ORDINALITY AS entries(item, position)
+        WHERE item->>'productId' = ANY($${parameters.length + 1}::text[])
+        ORDER BY item->>'productId', position
+      ) lines
+      GROUP BY item->>'productId'
+    `, [...parameters, productIds]);
+    return new Map(rows.map(row => [row.productId, Number(row.reserved)]));
+  }
   async stock<T extends Pick<Product, "id" | "stock">>(
     products: T[],
     branch: string,
@@ -50,18 +70,15 @@ export class LedgerService {
     except?: string,
   ) {
     if (!products.length) return [];
-    const [balances, orders] = await Promise.all([
+    const productIds = products.map(product => product.id);
+    const [balances, reservedByProduct] = await Promise.all([
       manager.getRepository(InventoryEntity).find({
         select: { productId: true, onHand: true },
-        where: { branch, productId: In(products.map(product => product.id)) },
+        where: { branch, productId: In(productIds) },
       }),
-      manager.getRepository(OrderEntity).find({
-        select: { data: true },
-        where: { branch, data: Raw(alias => `${alias} ->> 'status' IN (:...reservedStages)`, { reservedStages }) },
-      }),
+      this.reservedForProducts(productIds, branch, manager, except),
     ]);
     const onHandByProduct = new Map(balances.map(row => [row.productId, row.onHand]));
-    const reservedByProduct = reservedQuantities(orders.map(row => row.data), except);
     return products.map((product) => {
       const onHand =
         onHandByProduct.get(product.id) ??

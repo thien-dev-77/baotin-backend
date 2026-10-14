@@ -12,6 +12,7 @@ export type Product = {
   alternateCode?: string; sourceUrl?: string; shortDescription?: string;
   technicalDetails?: string; usageGuide?: string; warranty?: string;
   variantGroupId?: string;
+  variantLabel?: string;
   variantAttributes?: { name: string; value: string }[];
   reviewSummary?: { rating: number; count: number };
 };

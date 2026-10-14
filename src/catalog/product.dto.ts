@@ -2,7 +2,7 @@ import { Transform } from "class-transformer";
 import { ArrayMaxSize, ArrayUnique, IsArray, IsBoolean, IsInt, IsNumber, IsOptional, IsString, Length, Matches, Max, MaxLength, Min, ValidateNested } from "class-validator";
 import { Type } from "class-transformer";
 import { MAX_PRODUCT_PRICE, MAX_PRODUCT_DISCOUNT } from "./product-pricing";
-import { MAX_PRODUCT_GALLERY } from "./product.constants";
+import { MAX_PRODUCT_GALLERY, MAX_VARIANT_LABEL_LENGTH } from "./product.constants";
 
 const trim = Transform(({ value }) => typeof value === "string" ? value.trim() : value);
 export const productImagePattern = /^\/(?:images|media\/(?:images|uploads))\/[a-zA-Z0-9/_-]+\.(?:jpe?g|png|webp)$/;
@@ -42,5 +42,6 @@ export class ProductDto {
   @IsBoolean() featured!: boolean;
   @IsBoolean() published!: boolean;
   @IsOptional() @trim @IsString() @Length(1, 100) variantGroupId?: string;
+  @IsOptional() @trim @IsString() @MaxLength(MAX_VARIANT_LABEL_LENGTH) variantLabel?: string;
   @IsOptional() @IsArray() @ArrayMaxSize(6) @ValidateNested({ each: true }) @Type(() => VariantAttributeDto) variantAttributes?: VariantAttributeDto[];
 }

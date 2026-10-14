@@ -12,6 +12,7 @@ Warehouse, accountant, B2B and anonymous users cannot write products.
 | GET | `/admin/state` | Products include `published` and `revision`; response also includes categories |
 | POST | `/admin/products` | Create a product; returns `{ id, product }`, status 201 |
 | PATCH | `/admin/products/:id` | Replace editable fields; current `revision` required; returns `{ id, product }` |
+| PATCH | `/admin/products/:id/variants` | Configure all attributes of a group; `id` is the root SKU |
 | POST | `/media/product-images` | Multipart `images`, 1-10 files; returns `{ urls: string[] }` |
 
 Product fields: `name`, `code`, `slug`, `category`, `subcategory`, `brand`,
@@ -25,6 +26,22 @@ child SKU, send that UUID as `variantGroupId` and the same ordered attribute
 names with different values. Each SKU still has its own code, slug, price,
 gallery, stock, publication state, Kiot mapping and order identity. Product
 groups live in JSONB; no TypeORM migration is required.
+
+Optional `variantLabel` sets a display label for an individual SKU (maximum
+100 characters, trimmed plain text). Empty labels display the SKU's `code`.
+Send an empty string to clear a saved label; omitting it on update preserves
+the previous label. Public product and variant responses include this field.
+Labels do not affect attribute combinations, SKU uniqueness or order identity.
+
+Group configuration accepts `{ products: [{ id, revision, attributes: [{ name,
+value }] }] }` for every SKU in the group, including private ones (maximum 500
+SKUs per request). The same ordered names must appear on each SKU, with 1-6
+attributes and nonempty values. This endpoint can add, rename or remove types,
+or initialize a group on a standalone product. It validates all rows and
+updates them atomically; incomplete membership, stale revisions or duplicate
+combinations return 409. Invalid schemas return 400. Codes, pricing, inventory,
+images and custom SKU labels are preserved; size/color facets follow their
+corresponding attributes. Successful changes create a group audit event.
 
 The server rejects duplicate combinations (case insensitive), repeated
 attribute names, missing group roots, inconsistent category/brand/unit, or

@@ -206,15 +206,19 @@ test("Product management with isolated database and media", { timeout: 120000 },
       assert.equal(root.status, 201, JSON.stringify(root.data));
       const rootId = root.data.id;
       assert.equal(root.data.product.variantGroupId, rootId);
-      const childBody = { ...shared, code: `${draft.code}-800`, slug: `${draft.slug}-800`, size: "", color: "", listPrice: 200000, variantGroupId: rootId, variantAttributes: [{ name: "Kích thước", value: "800mm" }, { name: "Màu sắc", value: "Bạc" }] };
+      const childBody = { ...shared, code: `${draft.code}-800`, slug: `${draft.slug}-800`, size: "", color: "", listPrice: 200000, variantGroupId: rootId, variantLabel: "  Phải  ", variantAttributes: [{ name: "Kích thước", value: "800mm" }, { name: "Màu sắc", value: "Bạc" }] };
       const child = await admin.call("/admin/products", "POST", childBody);
       assert.equal(child.status, 201, JSON.stringify(child.data));
       assert.equal(child.data.product.price, 180000);
+      assert.equal(child.data.product.variantLabel, "Phải");
       assert.equal(child.data.product.size, "800mm"); assert.equal(child.data.product.color, "Bạc");
       await sql.query(`DELETE FROM "${schema}".price_policies`);
       await sql.query(`INSERT INTO "${schema}".inventory_balances (id,branch,"productId","onHand") VALUES ($1,$2,$3,7)`, [`Quy Nhơn:${child.data.id}`, "Quy Nhơn", child.data.id]);
       const detail = (await guest.call(`/catalog/product/${childBody.slug}`)).data;
       assert.equal(detail.variants.length, 2);
+      assert.equal(detail.variantLabel, "Phải");
+      assert.equal(detail.variants.find((item: { id: string }) => item.id === child.data.id).variantLabel, "Phải");
+      assert.equal(detail.variants.find((item: { id: string }) => item.id === rootId).variantLabel, undefined);
       assert.equal(detail.variants.find((item: { id: string }) => item.id === child.data.id).stock, 7);
       assert.ok(detail.variants.every((item: Record<string, unknown>) => item.b2bDiscount === undefined && item.customerPrice === undefined));
       assert.equal((await b2b.call(`/catalog/selection?ids=${child.data.id}`)).data.products[0].customerPrice, 160000);
@@ -233,6 +237,59 @@ test("Product management with isolated database and media", { timeout: 120000 },
       assert.equal((await guest.call(`/catalog/product/${privateChild.data.id}`)).status, 404);
       const rootEdit = await admin.call(`/admin/products/${rootId}`, "PATCH", { ...rootBody, variantGroupId: rootId, revision: root.data.product.revision, variantAttributes: [{ name: "Chiều dài", value: "600mm" }, { name: "Màu sắc", value: "Bạc" }] });
       assert.equal(rootEdit.status, 400);
+      for (const variantLabel of [123, "x".repeat(101)]) {
+        const invalid = await admin.call(`/admin/products/${child.data.id}`, "PATCH", { ...childBody, variantLabel, revision: child.data.product.revision });
+        assert.equal(invalid.status, 400);
+      }
+      const { variantLabel: _label, ...withoutLabel } = childBody;
+      const preserved = await admin.call(`/admin/products/${child.data.id}`, "PATCH", { ...withoutLabel, revision: child.data.product.revision });
+      assert.equal(preserved.status, 200);
+      assert.equal(preserved.data.product.variantLabel, "Phải");
+      const cleared = await admin.call(`/admin/products/${child.data.id}`, "PATCH", { ...withoutLabel, variantLabel: "  ", revision: preserved.data.product.revision });
+      assert.equal(cleared.status, 200);
+      assert.equal((await guest.call(`/catalog/product/${childBody.slug}`)).data.variantLabel, "");
+      const groupRows = await sql.query(`SELECT id,revision FROM "${schema}".products WHERE data->>'variantGroupId'=$1 ORDER BY id`, [rootId]);
+      const valuesById = new Map([
+        [rootId, ["Bạc", "Trái", "600mm"]],
+        [child.data.id, ["Đen", "Phải", "800mm"]],
+        [privateChild.data.id, ["Bạc", "Phải", "900mm"]],
+      ]);
+      const names = ["Màu sắc", "Hướng", "Kích thước"];
+      const setup = { products: groupRows.rows.map(row => ({ id: row.id, revision: row.revision, attributes: names.map((name, index) => ({ name, value: valuesById.get(row.id)![index] })) })) };
+      const configure = (body: object) => admin.call(`/admin/products/${rootId}/variants`, "PATCH", body);
+      assert.equal((await warehouse.call(`/admin/products/${rootId}/variants`, "PATCH", setup)).status, 403);
+      assert.equal((await guest.call(`/admin/products/${rootId}/variants`, "PATCH", setup)).status, 401);
+      assert.equal((await configure({ products: setup.products.slice(1) })).status, 409);
+      assert.equal((await configure({ products: setup.products.map((row, index) => index === 0 ? { ...row, revision: row.revision + 1 } : row) })).status, 409);
+      assert.equal((await configure({ products: setup.products.map((row, index) => index === 0 ? { ...row, attributes: [...row.attributes].reverse() } : row) })).status, 400);
+      assert.equal((await configure({ products: setup.products.map(row => ({ ...row, attributes: setup.products[0].attributes })) })).status, 409);
+      const beforeSetup = await sql.query(`SELECT id,revision,data FROM "${schema}".products WHERE data->>'variantGroupId'=$1 ORDER BY id`, [rootId]);
+      assert.deepEqual(beforeSetup.rows.map(row => row.revision), groupRows.rows.map(row => row.revision));
+      const configured = await configure(setup);
+      assert.equal(configured.status, 200, JSON.stringify(configured.data));
+      assert.equal(configured.data.products.length, 3);
+      const configuredDetail = (await guest.call(`/catalog/product/${childBody.slug}`)).data;
+      assert.deepEqual(configuredDetail.variantAttributes, names.map((name, index) => ({ name, value: valuesById.get(child.data.id)![index] })));
+      assert.equal(configuredDetail.color, "Đen"); assert.equal(configuredDetail.size, "800mm");
+      assert.equal(configuredDetail.variants.length, 2); assert.equal(configuredDetail.stock, 7); assert.equal(configuredDetail.price, 180000);
+      assert.equal((await configure(setup)).status, 409);
+      const afterSetup = await sql.query(`SELECT id,revision,data FROM "${schema}".products WHERE data->>'variantGroupId'=$1 ORDER BY id`, [rootId]);
+      for (let index = 0; index < afterSetup.rows.length; index++) {
+        const before = beforeSetup.rows[index], after = afterSetup.rows[index];
+        assert.equal(after.revision, before.revision + 1);
+        for (const field of ["code", "slug", "unit", "price", "gallery", "variantLabel"]) assert.deepEqual(after.data[field], before.data[field]);
+      }
+    });
+    await t.test("A standalone SKU can initialize separate variant types", async () => {
+      const attributes = [{ name: "Màu sắc", value: "Đen" }, { name: "Hướng", value: "Trái" }, { name: "Kích thước", value: "600mm" }];
+      const configured = await admin.call(`/admin/products/${id}/variants`, "PATCH", { products: [{ id, revision, attributes }] });
+      assert.equal(configured.status, 200, JSON.stringify(configured.data));
+      assert.equal(configured.data.products[0].variantGroupId, id);
+      assert.deepEqual(configured.data.products[0].variantAttributes, attributes);
+      const child = await admin.call("/admin/products", "POST", { ...draft, code: `${draft.code}-right`, slug: `${draft.slug}-right`, variantGroupId: id, variantAttributes: attributes.map(attribute => attribute.name === "Hướng" ? { ...attribute, value: "Phải" } : attribute) });
+      assert.equal(child.status, 201, JSON.stringify(child.data));
+      assert.equal(child.data.product.variantGroupId, id);
+      assert.equal((await sql.query(`SELECT "onHand" FROM "${schema}".inventory_balances WHERE "productId"=$1`, [id])).rows[0].onHand, 9);
     });
   } finally {
     if (child.exitCode === null) { child.kill("SIGTERM"); await once(child, "exit"); }

@@ -16,6 +16,7 @@ export class AdminBrowseDto extends AdminBranchDto {
   @IsOptional() @Transform(({ value }) => typeof value === "string" ? value.trim() : value) @IsString() @MaxLength(200) q?: string;
   @IsOptional() @IsString() @MaxLength(100) status?: string;
   @IsOptional() @IsString() @MaxLength(80) category?: string;
+  @IsOptional() @IsString() @MaxLength(100) subcategory?: string;
   @IsOptional() @IsString() @MaxLength(100) group?: string;
   @IsOptional() @IsString() @MaxLength(100) sales?: string;
   @IsOptional() @IsIn(["pilot", "regular"]) pilot?: string;

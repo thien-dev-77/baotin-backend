@@ -14,6 +14,7 @@ import { effectiveOrder } from "./admin.service";
 import { isWarehouseOrder } from "./rules/warehouse.rules";
 import { customerDebtSql, customerFinanceQuery, customerOverdueSql } from "./customer-finance.query";
 import type { ApiAdminState } from "../types/api.types";
+import type { Category } from "../types/domain.types";
 import type { AdminBrowseDto, AdminBranchDto } from "./admin-browse.dto";
 import { MAX_BULK_PRODUCTS } from "../catalog/product-bulk.dto";
 
@@ -22,6 +23,7 @@ const plain = Array.from(accents, char => char === "đ" ? "d" : char.normalize("
 const warehouseStages = ["Chờ soạn hàng", "Đang soạn", "Sẵn sàng giao"];
 const customerGroups = ["Chờ phân nhóm", "Xưởng nội thất", "Thiết kế - thi công", "Thợ - đội thi công"];
 const RECENT_CUSTOMER_ORDERS = 4;
+const PRODUCT_LIST_OMITTED_FIELDS = ["description", "shortDescription", "technicalDetails", "usageGuide", "gallery"];
 
 export function applyAdminSearch<T extends ObjectLiteral>(query: SelectQueryBuilder<T>, text: string | undefined, expressions: readonly string[]) {
   const folded = `lower(translate(normalize(concat_ws(' ', ${expressions.join(", ")}), NFC), '${accents}${accents.toUpperCase()}', '${plain}${plain.toUpperCase()}'))`;
@@ -63,18 +65,30 @@ export class AdminBrowseService {
     result.customers = []; result.approvals = []; result.receipts = []; result.paymentDueDates = {};
     return result;
   }
-  private async productQuery(input: AdminBrowseDto) {
+  private async productQuery(input: AdminBrowseDto, categories?: Category[]) {
     const query = this.db.source.getRepository(ProductEntity).createQueryBuilder("r").orderBy("r.data->>'name'", "ASC").addOrderBy("r.id", "ASC");
     applyAdminSearch(query, input.q, ["r.data->>'name'", "r.data->>'code'", "r.data->>'alternateCode'", "r.data->>'brand'"]);
     if (input.category) {
-      const categories = orderedCategories(await this.db.source.getRepository(CategoryEntity).find());
-      query.andWhere("r.data->>'category' IN (:...categorySlugs)", { categorySlugs: categoryDescendants(categories, input.category) });
+      const tree = categories || orderedCategories(await this.db.source.getRepository(CategoryEntity).find());
+      query.andWhere("r.data->>'category' IN (:...categorySlugs)", { categorySlugs: categoryDescendants(tree, input.category) });
     }
+    if (input.subcategory) query.andWhere("r.data->>'subcategory' = :subcategory", { subcategory: input.subcategory });
     if (input.status && input.status !== "all") {
       if (!["published", "hidden"].includes(input.status)) throw new BadRequestException("Trạng thái sản phẩm không hợp lệ.");
       query.andWhere("r.published = :published", { published: input.status === "published" });
     }
     return query;
+  }
+  private async productWindow(query: SelectQueryBuilder<ProductEntity>, input: AdminBrowseDto) {
+    const list = query.clone().select("r.id", "id").addSelect("r.published", "published").addSelect("r.revision", "revision")
+      .addSelect("r.data - :omitted::text[]", "data").setParameter("omitted", PRODUCT_LIST_OMITTED_FIELDS);
+    const readPage = (page: number) => list.clone().offset((page - 1) * input.pageSize).limit(input.pageSize)
+      .getRawMany<Pick<ProductEntity, "id" | "data" | "published" | "revision">>();
+    const [total, requestedRows] = await Promise.all([query.clone().getCount(), readPage(input.page)]);
+    const totalPages = Math.max(1, Math.ceil(total / input.pageSize));
+    const page = Math.min(input.page, totalPages);
+    const rows = page === input.page ? requestedRows : await readPage(page);
+    return { rows, pagination: { resource: input.resource, total, page, pageSize: input.pageSize, totalPages, ids: rows.map(row => row.id) } };
   }
   async productSelection(user: UserEntity, input: AdminBrowseDto) {
     this.authorize(user, input.branch);
@@ -89,10 +103,12 @@ export class AdminBrowseService {
     if ((input.from && !validDate(input.from)) || (input.to && !validDate(input.to)) || (input.from && input.to && input.from > input.to)) throw new BadRequestException("Khoảng ngày không hợp lệ.");
     const result: Partial<ApiAdminState> = { today: businessDate() };
     if (input.resource === "products") {
-      const query = await this.productQuery(input);
-      const { rows, pagination } = await this.window(query, input);
-      result.products = await this.ledger.stock(rows.map(row => ({ ...row.data, published: row.published, revision: row.revision })), input.branch);
-      result.categories = orderedCategories(await this.db.source.getRepository(CategoryEntity).find());
+      const categoriesPromise = this.db.source.getRepository(CategoryEntity).find().then(orderedCategories);
+      const query = await this.productQuery(input, input.category ? await categoriesPromise : undefined);
+      const pagePromise = this.productWindow(query, input).then(async ({ rows, pagination }) => ({ pagination,
+        products: await this.ledger.stock(rows.map(row => ({ ...row.data, gallery: [], published: row.published, revision: row.revision })), input.branch) }));
+      const [{ products, pagination }, categories] = await Promise.all([pagePromise, categoriesPromise]);
+      result.products = products; result.categories = categories;
       return this.redact(user, { ...result, pagination });
     }
     if (["orders", "warehouse"].includes(input.resource)) {

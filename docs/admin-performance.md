@@ -6,7 +6,7 @@ Deploy this API before the matching frontend. Legacy endpoints are retained.
 
 `GET /api/admin/browse` requires `branch` and `resource` (products, orders,
 customers, warehouse, approvals, receipts). Optional filters: `q`, `status`,
-`category`, `group`, `sales`, `pilot`, `from`, `to`. Unknown parameters, invalid
+`category`, `subcategory`, `group`, `sales`, `pilot`, `from`, `to`. Unknown parameters, invalid
 calendar dates, inverted dates and page sizes other than 10/25/50 are rejected.
 `page` starts at 1 and is clamped to the last page. SQL applies filtering/counts
 and offset/limit before loading JSON rows or financial projections. Response:
@@ -14,6 +14,18 @@ and offset/limit before loading JSON rows or financial projections. Response:
 rows and reference data. Customer pages include directory/assignees/groups and
 whole-branch debt/overdue/over-limit summaries. Warehouse pages include global
 active-stage counts. Customers receive at most four recent orders each.
+
+Product pages return a lightweight projection: `description`, `shortDescription`,
+`technicalDetails` and `usageGuide` are omitted, and `gallery` is an empty array.
+Full editor/resource reads keep these fields. Count and bounded page reads run
+in parallel; out-of-range requests still resolve to the last page. Categories
+are loaded once per browse request. `category` includes descendant categories;
+`subcategory` matches the product group and also applies to bulk selection/export.
+
+Stock reads aggregate only requested SKU reservations in PostgreSQL, returning
+per-SKU sums rather than every active order document. They retain branch/status
+filtering, excluded-order handling, first-occurrence duplicate-line semantics
+and existing stock fallback rules. Inventory is still computed live.
 
 `GET /api/admin/orders/:id?branch=...` returns one authorized order with its
 products/customer/approvals/receipts. Warehouse staff only see active warehouse

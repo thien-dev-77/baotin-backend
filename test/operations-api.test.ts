@@ -663,6 +663,7 @@ test(
             data: { ...baseOrder, id: `${prefix}-${index}`, status, items: [{ productId: products[0].id, quantity: quantities[index], unitPrice: products[0].price }] },
           })));
           await source.getRepository(OrderEntity).save({ id: `${prefix}-other`, branch: "Tuy Hòa", customerId: null, guestId: null, data: { ...baseOrder, id: `${prefix}-other`, branch: "Tuy Hòa", status: "Chờ soạn hàng", items: [{ productId: products[0].id, quantity: 900, unitPrice: products[0].price }] } });
+          await source.getRepository(OrderEntity).save({ id: `${prefix}-duplicate`, branch: "Quy Nhơn", customerId: null, guestId: null, data: { ...baseOrder, id: `${prefix}-duplicate`, status: "Đang soạn", items: [{ productId: products[0].id, quantity: 2, unitPrice: 1 }, { productId: products[0].id, quantity: 900, unitPrice: 1 }] } });
           const allOrders = (await source.getRepository(OrderEntity).find({ where: { branch: "Quy Nhơn" } })).map(row => row.data);
           const balances = await source.getRepository(InventoryEntity).find({ where: { branch: "Quy Nhơn" } });
           for (const except of [undefined, `${prefix}-0`]) {
