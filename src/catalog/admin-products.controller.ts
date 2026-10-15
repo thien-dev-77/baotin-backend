@@ -43,6 +43,20 @@ export class AdminProductsController {
     return this.variantCopy.apply(id, input, user.id);
   }
 
+  @Get(":id/variants") async variantGroup(@Param("id") id: string, @Req() request: AuthRequest) {
+    const user = (await this.auth.authenticate(request))!;
+    if (!["admin", "boss", "sales"].includes(user.role)) throw new ForbiddenException();
+    const repository = this.db.source.getRepository(ProductEntity);
+    const selected = await repository.findOneBy({ id });
+    if (!selected) throw new NotFoundException("Không tìm thấy sản phẩm.");
+    const groupId = selected.data.variantGroupId || id;
+    const rows = await repository.createQueryBuilder("p")
+      .where("p.id = :groupId OR p.data->>'variantGroupId' = :groupId", { groupId })
+      .orderBy("p.createdAt", "ASC").addOrderBy("p.id", "ASC").getMany();
+    if (!rows.some(row => row.id === groupId)) throw new NotFoundException("Không tìm thấy sản phẩm gốc của nhóm.");
+    return { products: rows.map(row => ({ ...row.data, published: row.published, revision: row.revision })) };
+  }
+
   @Patch(":id/variants") async configureVariants(@Param("id") id: string, @Body() input: ProductVariantGroupDto, @Req() request: AuthRequest) {
     const user = (await this.auth.authenticate(request))!;
     if (!["admin", "boss", "sales"].includes(user.role)) throw new ForbiddenException();
