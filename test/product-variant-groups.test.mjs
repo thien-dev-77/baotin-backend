@@ -154,6 +154,90 @@ test("variant groups expose fresh revisions and allow removing a dimension witho
     assert.equal((await sql.query('SELECT "onHand" FROM variants_qa.inventory_balances WHERE "productId"=$1', [sharedChild.id])).rows[0].onHand, 17);
     const newCleared = await call("/admin/products", "POST", { ...draft, code: "SHARED-NEW", slug: "shared-new", variantGroupId: sharedRoot.id, variantAttributes: [] }, cookies.admin);
     assert.equal(newCleared.status, 201, JSON.stringify(newCleared.data));
+
+    const detachBody = rows => ({ groupId: sharedRoot.id, products: rows.map(({ id, revision }) => ({ id, revision })) });
+    const detachPath = `/admin/products/${sharedChild.id}/detach-variant`;
+    const detachRows = await read(sharedRoot.id), body = detachBody(detachRows);
+    assert.equal((await call(detachPath, "POST", body)).status, 401);
+    for (const role of ["warehouse", "accountant", "kh001"]) assert.equal((await call(detachPath, "POST", body, cookies[role])).status, 403);
+    assert.equal((await call(detachPath, "POST", { ...body, products: body.products.slice(1) }, cookies.admin)).status, 409);
+    assert.equal((await call(detachPath, "POST", { ...body, products: body.products.map(row => ({ ...row, revision: 1 })) }, cookies.admin)).status, 409);
+    assert.equal((await call(detachPath, "POST", { ...body, products: [body.products[0], body.products[0]] }, cookies.admin)).status, 400);
+    assert.equal((await call(`/admin/products/${standalone.id}/detach-variant`, "POST", body, cookies.admin)).status, 409);
+    const beforeDetach = await savedRows(sharedRoot.id);
+    // Queue a detach before an ordinary save while both wait for the anchor.
+    // The save has already read the old revision when the detach commits.
+    const blocker = database.getPgClient("postgres", "127.0.0.1"); await blocker.connect();
+    let detaching, editing;
+    try {
+      await blocker.query("BEGIN");
+      await blocker.query("SELECT id FROM variants_qa.products WHERE id=$1 FOR UPDATE", [sharedRoot.id]);
+      const waitForBlocked = async count => {
+        for (let attempt = 0; attempt < 150; attempt++) {
+          const locks = await sql.query("SELECT COUNT(*)::int AS count FROM pg_stat_activity WHERE datname=current_database() AND wait_event_type='Lock' AND state='active'");
+          if (locks.rows[0].count >= count) return;
+          await new Promise(resolve => setTimeout(resolve, 20));
+        }
+        assert.fail(`Expected ${count} requests waiting for the group lock`);
+      };
+      detaching = call(detachPath, "POST", body, cookies.sales);
+      await waitForBlocked(1);
+      const editingSku = detachRows.find(row => row.id === sharedChild.id);
+      editing = call(`/admin/products/${sharedChild.id}`, "PATCH", { ...draft, code: sharedChild.code, slug: sharedChild.slug,
+        variantGroupId: sharedRoot.id, variantAttributes: editingSku.variantAttributes, revision: editingSku.revision,
+        name: "Nội dung đang lưu cùng lúc", gallery: ["/media/uploads/qa.webp"], published: true }, cookies.admin);
+      await waitForBlocked(2);
+      await blocker.query("COMMIT");
+    } finally {
+      await blocker.query("ROLLBACK"); await blocker.end();
+    }
+    const detached = await detaching;
+    const racedEdit = await editing;
+    assert.equal(racedEdit.status, 409, "a save that read before detaching cannot restore the old group");
+    assert.equal(detached.status, 201, JSON.stringify(detached.data));
+    const detachedRows = await read(sharedChild.id);
+    assert.equal(detachedRows.length, 1);
+    assert.equal(detachedRows[0].variantGroupId, sharedChild.id);
+    const beforeChild = beforeDetach.find(row => row.id === sharedChild.id);
+    const afterChild = (await savedRows(sharedChild.id))[0];
+    assert.deepEqual(afterChild.data, { ...beforeChild.data, variantGroupId: sharedChild.id });
+    assert.equal(afterChild.revision, beforeChild.revision + 1);
+    assert.equal(afterChild.published, true);
+    const remaining = await read(sharedRoot.id);
+    assert.equal(remaining.length, 3);
+    assert.ok(remaining.every(row => row.id !== sharedChild.id));
+    for (const row of await savedRows(sharedRoot.id)) assert.deepEqual(row, beforeDetach.find(previous => previous.id === row.id));
+    const detachedDetail = await call("/catalog/product/shared-b");
+    assert.equal(detachedDetail.data.stock, 17);
+    assert.equal(detachedDetail.data.variants.length, 1);
+    assert.ok((await call("/catalog/product/shared-a")).data.variants.every(row => row.id !== sharedChild.id));
+    assert.equal((await call(detachPath, "POST", body, cookies.admin)).status, 409, "a repeated detach never restores the old group");
+
+    const beforeRootDetach = await savedRows(root.id), rootSnapshot = await read(root.id);
+    const rootDetach = await call(`/admin/products/${root.id}/detach-variant`, "POST", { groupId: root.id, products: rootSnapshot.map(({ id, revision }) => ({ id, revision })) }, cookies.boss);
+    assert.equal(rootDetach.status, 201, JSON.stringify(rootDetach.data));
+    assert.notEqual(rootDetach.data.groupId, root.id);
+    const newRoot = rootDetach.data.groupId;
+    assert.equal((await read(root.id)).length, 1);
+    const reanchored = await read(newRoot);
+    assert.equal(reanchored.length, 2);
+    assert.ok(reanchored.every(row => row.variantGroupId === newRoot && row.id !== root.id));
+    for (const before of beforeRootDetach) {
+      const after = (await sql.query("SELECT revision,data,published FROM variants_qa.products WHERE id=$1", [before.id])).rows[0];
+      assert.deepEqual(after.data, { ...before.data, variantGroupId: before.id === root.id ? root.id : newRoot });
+      assert.equal(after.revision, before.revision + 1);
+      assert.equal(after.published, before.published);
+    }
+    const staleMember = rootSnapshot.find(row => row.id === sibling.id);
+    assert.equal((await call(`/admin/products/${sibling.id}`, "PATCH", { ...draft, code: sibling.code, slug: sibling.slug, variantGroupId: root.id, variantAttributes: staleMember.variantAttributes, revision: staleMember.revision }, cookies.admin)).status, 409);
+    const finalDetach = await call(`/admin/products/${newRoot}/detach-variant`, "POST", { groupId: newRoot, products: reanchored.map(({ id, revision }) => ({ id, revision })) }, cookies.admin);
+    assert.equal(finalDetach.status, 201, JSON.stringify(finalDetach.data));
+    for (const row of reanchored) {
+      const isolated = await read(row.id);
+      assert.equal(isolated.length, 1); assert.equal(isolated[0].variantGroupId, row.id);
+    }
+    const detachAudit = await sql.query("SELECT detail FROM variants_qa.audit_events WHERE action='product-variant-detach'");
+    assert.equal(detachAudit.rows.length, 3);
   } finally {
     if (child?.exitCode === null) { child.kill("SIGTERM"); await once(child, "exit"); }
     if (sql) await sql.end();

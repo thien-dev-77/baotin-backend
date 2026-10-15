@@ -96,12 +96,16 @@ but does not create a partially imported catalog.
 ## Media Across Redeployments
 
 The successfully stored media also lives in `media/imported/fulco/` (about 60 MB)
-with the same filenames as the backend uploads. These imported catalog assets
-are included in build output by `copy-runtime-assets.mjs` and served at the
-existing `/media/uploads/` paths. Product/category/content validation checks
-this fallback when a runtime upload file is absent. Other admin uploads still
-need persistent storage and backups; the build never copies private runtime
-`media/uploads/` files.
+with the same filenames as the backend uploads. `copy-runtime-assets.mjs` includes
+these assets for deployments using the default media root. When `MEDIA_DIR` is
+configured, imported images are served and validated only from
+`MEDIA_DIR/imported/fulco/`; copy the existing files there before restarting.
+The existing `/media/uploads/` URLs remain valid. Files in `MEDIA_DIR/uploads/`
+take precedence over the imported compatibility alias when filenames overlap.
+The API logs the resolved media root at startup. Keep this root on persistent
+storage outside release folders and back it up; the build never copies private
+runtime `media/uploads/` files. An explicit root never falls back to imported
+files inside an old build.
 
 Deploy backend before frontend. Backend adds optional source-content DTO fields,
 gallery limit 20 and the bulk endpoint; frontend then preserves these fields

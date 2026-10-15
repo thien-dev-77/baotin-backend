@@ -14,10 +14,16 @@ export class ProductVariantCopyService {
 
     return this.db.transaction(async manager => {
       const repository = manager.getRepository(ProductEntity);
+      const previous = await repository.findOneBy({ id });
+      if (!previous) throw new NotFoundException("Không tìm thấy sản phẩm nguồn.");
+      if (!previous.data.variantGroupId) throw new BadRequestException("Sản phẩm nguồn chưa thuộc nhóm biến thể.");
+      // Membership changes, product edits and copying all lock the anchor first.
+      await repository.createQueryBuilder("p").setLock("pessimistic_write")
+        .where("p.id = :groupId", { groupId: previous.data.variantGroupId }).getOne();
       const source = await repository.createQueryBuilder("p").setLock("pessimistic_write").where("p.id = :id", { id }).getOne();
       if (!source) throw new NotFoundException("Không tìm thấy sản phẩm nguồn.");
       if (!source.data.variantGroupId) throw new BadRequestException("Sản phẩm nguồn chưa thuộc nhóm biến thể.");
-      if (source.revision !== input.revision) throw new ConflictException("Sản phẩm nguồn đã thay đổi. Lưu hoặc tải lại trước khi áp dụng.");
+      if (source.revision !== input.revision || source.data.variantGroupId !== previous.data.variantGroupId) throw new ConflictException("Sản phẩm nguồn đã thay đổi. Lưu hoặc tải lại trước khi áp dụng.");
 
       const rows = await repository.createQueryBuilder("p").setLock("pessimistic_write")
         .whereInIds(input.products.map(product => product.id)).orderBy("p.id", "ASC").getMany();

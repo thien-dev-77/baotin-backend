@@ -8,7 +8,7 @@ import { randomUUID } from "node:crypto";
 import { AuthService, type AuthRequest } from "../auth/auth.service";
 import { DatabaseService } from "../database/database.service";
 import { AuditEntity, ProductEntity } from "../database/entities";
-import { runtimeAssetPath } from "../runtime-assets";
+import { productMediaRoot } from "./product-media";
 import { MAX_PRODUCT_GALLERY } from "../catalog/product.constants";
 
 @Controller("media")
@@ -41,7 +41,7 @@ export class MediaController {
         images.push(await processor.rotate().resize({ width: 2000, height: 2000, fit: "inside", withoutEnlargement: true }).webp({ quality: 88 }).toBuffer());
       } catch { throw new BadRequestException("Không đọc được ảnh hợp lệ."); }
     }
-    const directory = resolve(runtimeAssetPath(process.env.MEDIA_DIR || "media"), "uploads");
+    const directory = resolve(productMediaRoot(), "uploads");
     await mkdir(directory, { recursive: true });
     const stored: { path: string; url: string }[] = [];
     try {

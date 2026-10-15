@@ -36,6 +36,7 @@
     "test:product-bulk": "npm run build && node --test test/product-bulk.test.mjs",
     "test:variant-copy": "npm run build && node --test test/product-variant-copy.test.mjs",
     "test:variant-groups": "npm run build && node --test test/product-variant-groups.test.mjs",
+    "test:media-storage": "npm run build && node --test test/product-media-storage.test.mjs",
     "test:api": "tsx --test test/api.test.ts",
     "db:local": "tsx scripts/local-postgres.ts",
     "dev:local": "ENV_FILE=.env.local npm run dev"

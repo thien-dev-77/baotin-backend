@@ -13,13 +13,15 @@ import { ProductDto } from "./product.dto";
 import { ProductVariantGroupDto } from "./product-variant-group.dto";
 import { ProductVariantCopyDto } from "./product-variant-copy.dto";
 import { ProductVariantCopyService } from "./product-variant-copy.service";
+import { ProductVariantDetachDto } from "./product-variant-detach.dto";
+import { ProductVariantDetachService } from "./product-variant-detach.service";
 import { assertPublishable } from "./product.rules";
 import { resolveProductPricing } from "./product-pricing";
 import { validateVariantGroup, attributeKey, variantDimension } from "./product-variants";
 
 @Controller("admin/products")
 export class AdminProductsController {
-  constructor(private readonly auth: AuthService, private readonly db: DatabaseService, private readonly bulk: ProductBulkService, private readonly browse: AdminBrowseService, private readonly variantCopy: ProductVariantCopyService) {}
+  constructor(private readonly auth: AuthService, private readonly db: DatabaseService, private readonly bulk: ProductBulkService, private readonly browse: AdminBrowseService, private readonly variantCopy: ProductVariantCopyService, private readonly variantDetach: ProductVariantDetachService) {}
 
   @Get("selection") async selectProducts(@Query() input: ProductSelectionDto, @Req() request: AuthRequest) {
     const user = (await this.auth.authenticate(request))!;
@@ -41,6 +43,12 @@ export class AdminProductsController {
     const user = (await this.auth.authenticate(request))!;
     if (!["admin", "boss", "sales"].includes(user.role)) throw new ForbiddenException();
     return this.variantCopy.apply(id, input, user.id);
+  }
+
+  @Post(":id/detach-variant") async detachVariant(@Param("id") id: string, @Body() input: ProductVariantDetachDto, @Req() request: AuthRequest) {
+    const user = (await this.auth.authenticate(request))!;
+    if (!["admin", "boss", "sales"].includes(user.role)) throw new ForbiddenException();
+    return this.variantDetach.apply(id, input, user.id);
   }
 
   @Get(":id/variants") async variantGroup(@Param("id") id: string, @Req() request: AuthRequest) {
@@ -133,11 +141,14 @@ export class AdminProductsController {
       }
       if (!groupId && attributes?.length) throw new BadRequestException("Chọn nhóm sản phẩm trước khi thêm thuộc tính biến thể.");
       if (groupId) {
-        const root = groupId === productId ? previous?.data : (await repository.findOneBy({ id: groupId }))?.data;
+        // Group membership changes lock the anchor before its members.
+        const anchor = await repository.createQueryBuilder("p").setLock("pessimistic_write").where("p.id = :groupId", { groupId }).getOne();
+        const locked = groupId === productId ? anchor : previous
+          ? await repository.createQueryBuilder("p").setLock("pessimistic_write").where("p.id = :productId", { productId }).getOne() : null;
+        if (previous && locked?.revision !== input.revision) throw new ConflictException("Sản phẩm đã thay đổi. Làm mới trước khi lưu.");
+        const root = anchor?.data;
         if (groupId !== productId && (!root || root.variantGroupId !== groupId)) throw new BadRequestException("Không tìm thấy sản phẩm gốc của nhóm biến thể.");
         if (root && (root.category !== input.category || root.brand !== input.brand || root.unit !== input.unit)) throw new BadRequestException("Biến thể cần cùng danh mục, thương hiệu và đơn vị tính với sản phẩm gốc.");
-        // Lock the group anchor to serialize duplicate-combination checks.
-        if (groupId !== productId) await repository.createQueryBuilder("p").setLock("pessimistic_write").where("p.id = :groupId", { groupId }).getOne();
         const siblings = await repository.createQueryBuilder("p").where("p.data->>'variantGroupId' = :groupId", { groupId }).getMany();
         if (groupId === productId && siblings.length && ((previous?.data.variantAttributes?.length || 0) !== attributes!.length || previous?.data.variantAttributes?.some((item, index) => attributeKey(item.name) !== attributeKey(attributes![index]?.name || "")))) {
           throw new BadRequestException("Nhóm đã có biến thể. Hãy giữ nguyên tên và thứ tự thuộc tính.");

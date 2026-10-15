@@ -15,6 +15,7 @@ Warehouse, accountant, B2B and anonymous users cannot write products.
 | GET | `/admin/products/:id/variants` | Fresh group snapshot with every SKU's current revision, including private SKUs; accepts any member ID |
 | PATCH | `/admin/products/:id/variants` | Configure all attributes of a group; `id` is the root SKU |
 | POST | `/admin/products/:id/copy-to-variants` | Copy selected saved content to chosen sibling SKUs atomically |
+| POST | `/admin/products/:id/detach-variant` | Detach one SKU without deleting the product; reanchor remaining SKUs when necessary |
 | POST | `/media/product-images` | Multipart `images`, 1-10 files; returns `{ urls: string[] }` |
 
 Product fields: `name`, `code`, `slug`, `category`, `subcategory`, `brand`,
@@ -63,6 +64,22 @@ backend's type-removal behavior. Run `npm run test:variant-groups` for the isola
 PostgreSQL regression covering group-wide removal, shared values, empty schemas,
 SKU edits, publication and inventory preservation.
 
+Detaching accepts `{ groupId, products: [{ id, revision }] }`, with the complete
+fresh group membership (including private SKUs), at least two and at most 500
+unique members. The URL identifies the SKU to detach. The transaction locks the
+anchor and members, checks every revision, then moves the SKU into an isolated
+group whose ID is its own ID. Attributes and custom labels are preserved along
+with all identity, content, prices, inventory, publication and order references.
+If the old anchor is detached, the earliest remaining SKU (createdAt, then ID)
+becomes the new anchor for every remaining member. A pair can become two isolated
+groups. Conflicting membership/revisions return 409 with no partial changes;
+malformed snapshots return 400 and a missing anchor returns 404. Only admin,
+boss and sales can detach. Each success records `product-variant-detach` with
+old/new group IDs and changed revisions. Product edits and content copying use
+the same anchor-first lock order so concurrent writes cannot restore old links.
+The frontend mutation proxy invalidates all public catalog/detail caches.
+No database migration is needed. Deploy the backend before the frontend action.
+
 Content copying accepts `{ revision, fields, products: [{ id, revision }] }`.
 The URL identifies any saved source SKU, including a child; recipients must
 belong to the same group and exclude the source. Select 1-500 unique recipients
@@ -107,6 +124,16 @@ Successful content writes create audit events, without logging secrets.
 JPEG, PNG and WebP only; maximum 5 MB per file and 10 gallery entries.
 Sharp validates actual image bytes, auto-rotates, limits decoding to 20M
 pixels, resizes inside 2000x2000 and stores WebP in `MEDIA_DIR/uploads`.
+Imported Fulco images are read from `MEDIA_DIR/imported/fulco`, under the same
+root. Existing `/media/uploads/<filename>` URLs first check `uploads`, then
+`imported/fulco`; validation uses the same order. An explicit `MEDIA_DIR` does
+not fall back to the release's bundled imported images. If no media root is set,
+the normal source/build `media` directory is used for both paths.
+For Hostinger, use a persistent directory outside `hbuilds/current`, for example
+`/home/u835023841/domains/baotin-api.devops-testing.site/baotin-media`, with
+`uploads`, `imported/fulco` and `images` directly inside. Copy the old media
+contents before restarting; no product URLs or database paths need changing.
+After restart, `Bao Tin media root: ...` in the API log identifies the root in use.
 Every image in a batch is validated before any files are written.
 On write failure, newly written batch files are removed.
 
