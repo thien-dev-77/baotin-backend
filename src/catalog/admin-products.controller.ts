@@ -11,13 +11,15 @@ import { AdminBrowseService } from "../admin/admin-browse.service";
 import type { Product } from "../types/domain.types";
 import { ProductDto } from "./product.dto";
 import { ProductVariantGroupDto } from "./product-variant-group.dto";
+import { ProductVariantCopyDto } from "./product-variant-copy.dto";
+import { ProductVariantCopyService } from "./product-variant-copy.service";
 import { assertPublishable } from "./product.rules";
 import { resolveProductPricing } from "./product-pricing";
 import { validateVariantGroup, attributeKey, variantDimension } from "./product-variants";
 
 @Controller("admin/products")
 export class AdminProductsController {
-  constructor(private readonly auth: AuthService, private readonly db: DatabaseService, private readonly bulk: ProductBulkService, private readonly browse: AdminBrowseService) {}
+  constructor(private readonly auth: AuthService, private readonly db: DatabaseService, private readonly bulk: ProductBulkService, private readonly browse: AdminBrowseService, private readonly variantCopy: ProductVariantCopyService) {}
 
   @Get("selection") async selectProducts(@Query() input: ProductSelectionDto, @Req() request: AuthRequest) {
     const user = (await this.auth.authenticate(request))!;
@@ -33,6 +35,12 @@ export class AdminProductsController {
 
   @Post() create(@Body() input: ProductDto, @Req() request: AuthRequest) {
     return this.save(input, request);
+  }
+
+  @Post(":id/copy-to-variants") async copyToVariants(@Param("id") id: string, @Body() input: ProductVariantCopyDto, @Req() request: AuthRequest) {
+    const user = (await this.auth.authenticate(request))!;
+    if (!["admin", "boss", "sales"].includes(user.role)) throw new ForbiddenException();
+    return this.variantCopy.apply(id, input, user.id);
   }
 
   @Patch(":id/variants") async configureVariants(@Param("id") id: string, @Body() input: ProductVariantGroupDto, @Req() request: AuthRequest) {

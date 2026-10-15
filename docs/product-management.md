@@ -13,6 +13,7 @@ Warehouse, accountant, B2B and anonymous users cannot write products.
 | POST | `/admin/products` | Create a product; returns `{ id, product }`, status 201 |
 | PATCH | `/admin/products/:id` | Replace editable fields; current `revision` required; returns `{ id, product }` |
 | PATCH | `/admin/products/:id/variants` | Configure all attributes of a group; `id` is the root SKU |
+| POST | `/admin/products/:id/copy-to-variants` | Copy selected saved content to chosen sibling SKUs atomically |
 | POST | `/media/product-images` | Multipart `images`, 1-10 files; returns `{ urls: string[] }` |
 
 Product fields: `name`, `code`, `slug`, `category`, `subcategory`, `brand`,
@@ -51,6 +52,23 @@ set the existing `size`/`color` catalog facets. A child may be private while
 other SKUs in the group stay public. Order quotes and price policies continue
 to use the exact child `productId`; existing order snapshots are unchanged.
 
+Content copying accepts `{ revision, fields, products: [{ id, revision }] }`.
+The URL identifies any saved source SKU, including a child; recipients must
+belong to the same group and exclude the source. Select 1-500 unique recipients
+and at least one of `name`, `shortDescription`, `description`, `technicalDetails`,
+`usageGuide`, `warranty`, `gallery`, `material`, `origin`. Only selected fields
+are copied from the database; request-supplied content and unknown fields are
+rejected. Technical details also copy the listing `specification`; gallery
+copies the cover `image` and verifies source image files. Empty selected fields
+clear their recipient values. SKU, slug, stock, prices/discounts, publication,
+variant attributes and custom labels are preserved. Source revision is not
+changed. Missing records return 404, group/field/publication violations 400,
+and stale source/recipient revisions 409. All recipients validate before saving;
+one invalid public SKU rolls back the request. Successful requests create one
+`product-variant-content-copy` audit event with source revision, fields and
+updated recipient IDs/revisions. No schema migration is needed. Deploy this
+backend before enabling the frontend action. Run `npm run test:variant-copy`.
+
 `GET /catalog/product/:slug` embeds a `variants` array for grouped products.
 It includes only public SKUs and retail data, with no guest B2B prices.
 Authenticated B2B clients request `/catalog/selection?ids=...` for their actual
@@ -58,7 +76,8 @@ policy prices. Public search, bootstrap and `/catalog` show one matching SKU per
 group; size/stock/price filters apply to individual SKUs before grouping.
 Admin browse and CSV retain every SKU for editing and inventory operations.
 Unknown properties, client stock/customer prices and invalid numbers are rejected.
-`description` is plain text, not HTML; storefront renders it escaped.
+Descriptions can contain CKEditor HTML; the storefront filters HTML before
+rendering and retains line breaks for legacy plain text.
 Category must exist; optional subcategory must belong to it.
 SKU uniqueness is case-insensitive after trimming; slugs are unique URL-safe
 lowercase strings. Omitted `oldPrice` clears the previous value on update.
