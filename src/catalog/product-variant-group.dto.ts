@@ -6,7 +6,7 @@ import { MAX_BULK_PRODUCTS } from "./product-bulk.dto";
 class VariantGroupProductDto {
   @IsString() @Length(1, 100) id!: string;
   @IsInt() @Min(1) revision!: number;
-  @IsArray() @ArrayMinSize(1) @ArrayMaxSize(6)
+  @IsArray() @ArrayMaxSize(6)
   @ValidateNested({ each: true }) @Type(() => VariantAttributeDto) attributes!: VariantAttributeDto[];
 }
 

@@ -12,6 +12,7 @@ Warehouse, accountant, B2B and anonymous users cannot write products.
 | GET | `/admin/state` | Products include `published` and `revision`; response also includes categories |
 | POST | `/admin/products` | Create a product; returns `{ id, product }`, status 201 |
 | PATCH | `/admin/products/:id` | Replace editable fields; current `revision` required; returns `{ id, product }` |
+| GET | `/admin/products/:id/variants` | Fresh group snapshot with every SKU's current revision, including private SKUs; accepts any member ID |
 | PATCH | `/admin/products/:id/variants` | Configure all attributes of a group; `id` is the root SKU |
 | POST | `/admin/products/:id/copy-to-variants` | Copy selected saved content to chosen sibling SKUs atomically |
 | POST | `/media/product-images` | Multipart `images`, 1-10 files; returns `{ urls: string[] }` |
@@ -36,21 +37,31 @@ Labels do not affect attribute combinations, SKU uniqueness or order identity.
 
 Group configuration accepts `{ products: [{ id, revision, attributes: [{ name,
 value }] }] }` for every SKU in the group, including private ones (maximum 500
-SKUs per request). The same ordered names must appear on each SKU, with 1-6
-attributes and nonempty values. This endpoint can add, rename or remove types,
+SKUs per request). The same ordered names must appear on each SKU, with 0-6
+attributes and nonempty values for retained types. This endpoint can add, rename or remove types,
 or initialize a group on a standalone product. It validates all rows and
-updates them atomically; incomplete membership, stale revisions or duplicate
-combinations return 409. Invalid schemas return 400. Codes, pricing, inventory,
+updates them atomically; incomplete membership, stale revisions or newly introduced
+duplicate combinations return 409. Removing types while preserving their remaining
+values may make multiple SKUs share a combination; this is allowed across the entire
+group. Existing overlaps remain valid on later content edits or type renames. An empty
+attribute array removes all types while keeping group membership and every SKU.
+Invalid schemas return 400. Codes, pricing, inventory,
 images and custom SKU labels are preserved; size/color facets follow their
 corresponding attributes. Successful changes create a group audit event.
 
-The server rejects duplicate combinations (case insensitive), repeated
+The server rejects new duplicate combinations (case insensitive), repeated
 attribute names, missing group roots, inconsistent category/brand/unit, or
-changing group identity. Once children exist, attribute names and order of the
-root stay fixed. `Kích thước...`/`Size` and `Màu sắc`/`Color` attributes also
+changing group identity. Groups with no types distinguish new members by their
+unique SKU and slug. Type changes go through the group endpoint; individual product
+edits retain the group's ordered schema. `Kích thước...`/`Size` and `Màu sắc`/`Color` attributes also
 set the existing `size`/`color` catalog facets. A child may be private while
 other SKUs in the group stay public. Order quotes and price policies continue
 to use the exact child `productId`; existing order snapshots are unchanged.
+The storefront offers a SKU chooser for matching combinations, or for the whole
+group when all types have been removed. Deploy that chooser before enabling the
+backend's type-removal behavior. Run `npm run test:variant-groups` for the isolated
+PostgreSQL regression covering group-wide removal, shared values, empty schemas,
+SKU edits, publication and inventory preservation.
 
 Content copying accepts `{ revision, fields, products: [{ id, revision }] }`.
 The URL identifies any saved source SKU, including a child; recipients must

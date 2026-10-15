@@ -81,7 +81,8 @@ export class AdminProductsController {
           color: variantDimension(attributes, "color") || row.data.color };
       });
       const anchor = products.find(product => product.id === id)!;
-      for (const product of products) validateVariantGroup(product.variantAttributes!, anchor, products, product.id);
+      const previous = rows.map(row => row.data);
+      for (const product of products) validateVariantGroup(product.variantAttributes!, anchor, products, product.id, previous);
       const byId = new Map(products.map(product => [product.id, product]));
       for (const row of rows) row.data = byId.get(row.id)!;
       const saved = await repository.save(rows);
@@ -127,7 +128,7 @@ export class AdminProductsController {
       const productId = previous?.id || randomUUID();
       const groupId = input.variantGroupId === "self" ? productId : input.variantGroupId ?? previous?.data.variantGroupId;
       const attributes = input.variantAttributes ?? previous?.data.variantAttributes;
-      if (groupId && (!attributes?.length || (previous?.data.variantGroupId && previous.data.variantGroupId !== groupId))) {
+      if (groupId && (!attributes || (previous?.data.variantGroupId && previous.data.variantGroupId !== groupId))) {
         throw new BadRequestException("Nhóm biến thể không hợp lệ hoặc không thể đổi nhóm đã tạo.");
       }
       if (!groupId && attributes?.length) throw new BadRequestException("Chọn nhóm sản phẩm trước khi thêm thuộc tính biến thể.");
@@ -138,10 +139,11 @@ export class AdminProductsController {
         // Lock the group anchor to serialize duplicate-combination checks.
         if (groupId !== productId) await repository.createQueryBuilder("p").setLock("pessimistic_write").where("p.id = :groupId", { groupId }).getOne();
         const siblings = await repository.createQueryBuilder("p").where("p.data->>'variantGroupId' = :groupId", { groupId }).getMany();
-        if (groupId === productId && siblings.length && previous?.data.variantAttributes?.some((item, index) => attributeKey(item.name) !== attributeKey(attributes![index]?.name || ""))) {
+        if (groupId === productId && siblings.length && ((previous?.data.variantAttributes?.length || 0) !== attributes!.length || previous?.data.variantAttributes?.some((item, index) => attributeKey(item.name) !== attributeKey(attributes![index]?.name || "")))) {
           throw new BadRequestException("Nhóm đã có biến thể. Hãy giữ nguyên tên và thứ tự thuộc tính.");
         }
-        validateVariantGroup(attributes!, groupId === productId ? undefined : root, siblings.map(row => row.data), productId);
+        const group = siblings.map(row => row.data);
+        validateVariantGroup(attributes!, groupId === productId ? undefined : root, group, productId, group);
       }
       const data: Product = { ...previous?.data, ...fields, ...pricing, id: productId, image: input.gallery[0] || "", stock: previous?.data.stock || 0,
         variantLabel: input.variantLabel ?? previous?.data.variantLabel,
