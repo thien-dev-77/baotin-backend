@@ -17,7 +17,7 @@ import { ProductVariantDetachDto } from "./product-variant-detach.dto";
 import { ProductVariantDetachService } from "./product-variant-detach.service";
 import { assertPublishable } from "./product.rules";
 import { resolveProductPricing } from "./product-pricing";
-import { validateVariantGroup, attributeKey, variantDimension } from "./product-variants";
+import { validateVariantGroup, validateVariantGroupConfiguration, attributeKey, variantDimension } from "./product-variants";
 
 @Controller("admin/products")
 export class AdminProductsController {
@@ -90,7 +90,7 @@ export class AdminProductsController {
       });
       const anchor = products.find(product => product.id === id)!;
       const previous = rows.map(row => row.data);
-      for (const product of products) validateVariantGroup(product.variantAttributes!, anchor, products, product.id, previous);
+      validateVariantGroupConfiguration(products, anchor, previous);
       const byId = new Map(products.map(product => [product.id, product]));
       for (const row of rows) row.data = byId.get(row.id)!;
       const saved = await repository.save(rows);

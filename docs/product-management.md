@@ -49,6 +49,10 @@ attribute array removes all types while keeping group membership and every SKU.
 Invalid schemas return 400. Codes, pricing, inventory,
 images and custom SKU labels are preserved; size/color facets follow their
 corresponding attributes. Successful changes create a group audit event.
+Duplicate-combination errors include every conflicting combination in the
+submitted group, listing the SKU codes and each attribute name/value with
+instructions to correct values, add a distinguishing type or detach a SKU.
+The request remains atomic; no SKU changes when validation fails.
 
 The server rejects new duplicate combinations (case insensitive), repeated
 attribute names, missing group roots, inconsistent category/brand/unit, or

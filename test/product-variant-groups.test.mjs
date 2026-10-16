@@ -238,6 +238,26 @@ test("variant groups expose fresh revisions and allow removing a dimension witho
     }
     const detachAudit = await sql.query("SELECT detail FROM variants_qa.audit_events WHERE action='product-variant-detach'");
     assert.equal(detachAudit.rows.length, 3);
+
+    const conflictProducts = [];
+    for (const code of ["FC09S-750-B-304", "FC09S-800-B-304", "FC09S-750-X-304", "FC09S-800-X-304"]) {
+      conflictProducts.push(await create({ code, slug: code.toLowerCase(), variantGroupId: conflictProducts[0]?.id || "self",
+        variantAttributes: [{ name: "Kích thước", value: "800mm" }, { name: "Vật dụng", value: code }] }));
+    }
+    const conflictPath = `/admin/products/${conflictProducts[0].id}/variants`;
+    const conflictPayload = { products: conflictProducts.map(product => ({ id: product.id, revision: product.revision,
+      attributes: [{ name: "Kích thước", value: "800mm" }, { name: "Vật dụng", value: product.code.includes("-B-") ? "Bát" : "Xoang" }] })) };
+    const beforeConflicts = await savedRows(conflictProducts[0].id);
+    const conflicts = await call(conflictPath, "PATCH", conflictPayload, cookies.admin);
+    assert.equal(conflicts.status, 409);
+    assert.match(conflicts.data.message, /Tổ hợp thuộc tính bị trùng ở 2 nhóm SKU/);
+    assert.match(conflicts.data.message, /FC09S-750-B-304, FC09S-800-B-304 cùng có Kích thước: 800mm · Vật dụng: Bát/);
+    assert.match(conflicts.data.message, /FC09S-750-X-304, FC09S-800-X-304 cùng có Kích thước: 800mm · Vật dụng: Xoang/);
+    assert.match(conflicts.data.message, /sửa giá trị.*thêm thuộc tính.*tách SKU/);
+    assert.deepEqual(await savedRows(conflictProducts[0].id), beforeConflicts, "all conflict details are returned without changing any SKU");
+    const corrected = await call(conflictPath, "PATCH", { products: conflictPayload.products.map((row, index) => ({ ...row,
+      attributes: [{ ...row.attributes[0], value: conflictProducts[index].code.includes("-750-") ? "750mm" : "800mm" }, row.attributes[1]] })) }, cookies.admin);
+    assert.equal(corrected.status, 200, JSON.stringify(corrected.data));
   } finally {
     if (child?.exitCode === null) { child.kill("SIGTERM"); await once(child, "exit"); }
     if (sql) await sql.end();
