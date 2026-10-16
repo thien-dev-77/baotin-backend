@@ -65,6 +65,7 @@ test("Product management with isolated database and media", { timeout: 120000 },
       assert.equal(result.status, 201, JSON.stringify(result.data));
       id = result.data.id; revision = result.data.product.revision;
       assert.equal(result.data.product.stock, 0);
+      assert.equal(result.data.product.showAuthenticityLabel, true);
       for (const actor of [guest, b2b]) {
         assert.ok(!(await actor.call("/catalog")).data.products.some((product: { id: string }) => product.id === id));
         assert.equal((await actor.call(`/catalog/${draft.slug}`)).status, 404);
@@ -83,6 +84,7 @@ test("Product management with isolated database and media", { timeout: 120000 },
       assert.equal((await admin.call("/admin/commands", "POST", { action: "publish-product", id, branch: "Quy Nhơn", payload: { published: true } })).status, 400);
     });
     await t.test("Validate categories, identifiers, fields and image paths", async () => {
+      for (const showAuthenticityLabel of ["false", 0, {}]) assert.equal((await patch({ showAuthenticityLabel })).status, 400);
       for (const changes of [{ category: "missing" }, { subcategory: "Invalid group" }, { name: "  " }, { slug: "invalid/slug" }, { price: -1 }, { price: 1.5 }, { price: 100, oldPrice: 1 }, { stock: 999 }, { customerPrice: 1 }, { gallery: ["https://example.com/image.jpg"] }, { gallery: ["/media/uploads/../secret.png"] }, { gallery: ["/media/uploads/missing.webp"] }]) {
         assert.equal((await patch(changes)).status, 400, JSON.stringify(changes));
       }
@@ -128,6 +130,27 @@ test("Product management with isolated database and media", { timeout: 120000 },
       assert.equal(publicProduct.image, reversed[0]);
       assert.deepEqual(publicProduct.gallery, reversed);
       assert.equal((await patch({ gallery: [gallery[0], gallery[0]] })).status, 400);
+    });
+    await t.test("Authenticity labels default on, persist when hidden and remain visible in public catalog contracts", async () => {
+      const visibleDraft = { price: 125000, specification: "12V · 8W", published: true };
+      await sql.query(`UPDATE "${schema}".products SET data=data-'showAuthenticityLabel' WHERE id=$1`, [id]);
+      assert.equal((await guest.call(`/catalog/${draft.slug}`)).data.showAuthenticityLabel, undefined, "legacy records may omit the setting");
+      const upgraded = await patch(visibleDraft);
+      assert.equal(upgraded.status, 200); revision = upgraded.data.product.revision;
+      assert.equal(upgraded.data.product.showAuthenticityLabel, true);
+      const hidden = await patch({ ...visibleDraft, showAuthenticityLabel: false });
+      assert.equal(hidden.status, 200); revision = hidden.data.product.revision;
+      assert.equal(hidden.data.product.showAuthenticityLabel, false);
+      assert.equal((await guest.call(`/catalog/${draft.slug}`)).data.showAuthenticityLabel, false);
+      assert.equal((await guest.call(`/catalog/selection?ids=${id}`)).data.products[0].showAuthenticityLabel, false);
+      assert.equal((await guest.call(`/catalog/search?q=${draft.code}`)).data.products.find((product: { id: string }) => product.id === id).showAuthenticityLabel, false);
+      assert.equal((await admin.call("/admin/state")).data.products.find((product: { id: string }) => product.id === id).showAuthenticityLabel, false);
+      const renamed = await patch({ ...visibleDraft, name: "Product with hidden authenticity label" });
+      assert.equal(renamed.status, 200); revision = renamed.data.product.revision;
+      assert.equal(renamed.data.product.showAuthenticityLabel, false, "older clients omitting the setting must preserve false");
+      const restored = await patch({ ...visibleDraft, showAuthenticityLabel: true });
+      assert.equal(restored.status, 200); revision = restored.data.product.revision;
+      assert.equal((await guest.call(`/catalog/${draft.slug}`)).data.showAuthenticityLabel, true);
     });
     await t.test("Stale edits are rejected without overwriting", async () => {
       const first = await patch({ name: "First editor" });
@@ -201,7 +224,7 @@ test("Product management with isolated database and media", { timeout: 120000 },
     });
     await t.test("Flexible variants keep independent SKU prices, inventory and public visibility", async () => {
       const shared = { ...draft, name: "QA configurable shelf", specification: "Inox 304", gallery, published: true, listPrice: 100000, b2cDiscount: 10, b2bDiscount: 20, price: 1 };
-      const rootBody = { ...shared, code: `${draft.code}-600`, slug: `${draft.slug}-600`, size: "600mm", color: "Bạc", variantGroupId: "self", variantAttributes: [{ name: "Kích thước", value: "600mm" }, { name: "Màu sắc", value: "Bạc" }] };
+      const rootBody = { ...shared, code: `${draft.code}-600`, slug: `${draft.slug}-600`, size: "600mm", color: "Bạc", showAuthenticityLabel: false, variantGroupId: "self", variantAttributes: [{ name: "Kích thước", value: "600mm" }, { name: "Màu sắc", value: "Bạc" }] };
       const root = await admin.call("/admin/products", "POST", rootBody);
       assert.equal(root.status, 201, JSON.stringify(root.data));
       const rootId = root.data.id;
@@ -211,6 +234,8 @@ test("Product management with isolated database and media", { timeout: 120000 },
       assert.equal(child.status, 201, JSON.stringify(child.data));
       assert.equal(child.data.product.price, 180000);
       assert.equal(child.data.product.variantLabel, "Phải");
+      assert.equal(root.data.product.showAuthenticityLabel, false);
+      assert.equal(child.data.product.showAuthenticityLabel, true, "each SKU controls its own label");
       assert.equal(child.data.product.size, "800mm"); assert.equal(child.data.product.color, "Bạc");
       await sql.query(`DELETE FROM "${schema}".price_policies`);
       await sql.query(`INSERT INTO "${schema}".inventory_balances (id,branch,"productId","onHand") VALUES ($1,$2,$3,7)`, [`Quy Nhơn:${child.data.id}`, "Quy Nhơn", child.data.id]);

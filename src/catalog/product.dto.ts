@@ -40,6 +40,7 @@ export class ProductDto {
   @IsOptional() @trim @IsString() @MaxLength(500) warranty?: string;
   @IsArray() @ArrayMaxSize(MAX_PRODUCT_GALLERY) @ArrayUnique() @IsString({ each: true }) @Matches(productImagePattern, { each: true }) gallery!: string[];
   @IsBoolean() featured!: boolean;
+  @IsOptional() @IsBoolean() showAuthenticityLabel?: boolean;
   @IsBoolean() published!: boolean;
   @IsOptional() @trim @IsString() @Length(1, 100) variantGroupId?: string;
   @IsOptional() @trim @IsString() @MaxLength(MAX_VARIANT_LABEL_LENGTH) variantLabel?: string;

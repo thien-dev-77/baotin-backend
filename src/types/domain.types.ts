@@ -8,6 +8,7 @@ export type Product = {
   color: string; size: string; origin: string; price: number; oldPrice?: number;
   listPrice?: number; b2cDiscount?: number; b2bDiscount?: number;
   unit: string; stock: number; featured: boolean; customerPrice?: number;
+  showAuthenticityLabel?: boolean;
   description?: string;
   alternateCode?: string; sourceUrl?: string; shortDescription?: string;
   technicalDetails?: string; usageGuide?: string; warranty?: string;

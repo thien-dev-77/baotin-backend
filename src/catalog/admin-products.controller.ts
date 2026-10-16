@@ -157,6 +157,7 @@ export class AdminProductsController {
         validateVariantGroup(attributes!, groupId === productId ? undefined : root, group, productId, group);
       }
       const data: Product = { ...previous?.data, ...fields, ...pricing, id: productId, image: input.gallery[0] || "", stock: previous?.data.stock || 0,
+        showAuthenticityLabel: input.showAuthenticityLabel ?? previous?.data.showAuthenticityLabel ?? true,
         variantLabel: input.variantLabel ?? previous?.data.variantLabel,
         ...(groupId ? { variantGroupId: groupId, variantAttributes: attributes,
           size: variantDimension(attributes!, "size") || input.size,

@@ -159,6 +159,13 @@ paths cannot be submitted as gallery images. The legacy single-image route
 
 ## Visibility
 
+Optional boolean `showAuthenticityLabel` controls the distribution label on
+product cards and the gallery cover/zoom image. It defaults to `true` for new
+products; legacy records without the field are also displayed with the label.
+Send `false` to hide it or `true` to show it. Updates omitting this field preserve
+the previous value, including `false`. It is stored in each SKU's JSONB and
+returned in admin/public product responses; no migration or group update is needed.
+
 Frontend defaults new products to private (`published: false`). Private products
 can be managed by staff but are absent from the public catalog, search/category
 lists, related products and guest/B2B product endpoints (404). Order quoting
