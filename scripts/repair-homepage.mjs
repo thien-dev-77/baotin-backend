@@ -6,8 +6,7 @@ import { config } from "dotenv";
 import pg from "pg";
 import sharp from "sharp";
 import { planHomepageRepair, HOMEPAGE_REPAIR_VERSION } from "../dist/content/homepage-repair.js";
-import { assertProductImageExists } from "../dist/media/product-media.js";
-import { runtimeAssetPath } from "../dist/runtime-assets.js";
+import { assertProductImageExists, resolveProductImagePath } from "../dist/media/product-media.js";
 
 const COMMAND_LOCK = 82610477;
 function table(schema, name) {
@@ -16,7 +15,7 @@ function table(schema, name) {
   return `"${schema}"."${name}"`;
 }
 
-export async function repairHomepage(client, schema, { apply = false, backupPath, validateMedia = validateImages } = {}) {
+export async function repairHomepage(client, schema, { apply = false, backupPath, validateMedia = validateHomepageImages } = {}) {
   table(schema, "products");
   await client.query("BEGIN");
   try {
@@ -53,11 +52,10 @@ export async function repairHomepage(client, schema, { apply = false, backupPath
   } catch (error) { await client.query("ROLLBACK"); throw error; }
 }
 
-async function validateImages(plan) {
+export async function validateHomepageImages(plan) {
   for (const row of plan.featured) await assertProductImageExists(row.data.image);
   for (const row of plan.banners) {
-    await assertProductImageExists(row.data.image);
-    const image = resolve(runtimeAssetPath(process.env.MEDIA_DIR || "media"), row.data.image.slice(1));
+    const image = await resolveProductImagePath(row.data.image);
     const metadata = await sharp(image).metadata();
     if (!metadata.width || !metadata.height) throw new Error(`Invalid banner image: ${row.id}.`);
   }

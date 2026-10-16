@@ -103,7 +103,7 @@ async function main() {
     }
     session = await maintenanceSession(client, schema, apiBase.origin);
     const media = await prepareFulcoMedia(sourceURLs, { cacheDir: join(directory, "media"), remote: { base: apiBase.origin, origin: origin.origin, cookie: session.cookie } });
-    const bundled = await exportImportedMedia(media.manifestPath, resolve("media/imported/fulco"));
+    const bundled = await exportImportedMedia(media.manifestPath);
     const plan = buildFulcoImport(workbook, media.imageURLs, options);
     const report = { stage: "ready", file: resolve(file), workbookHash: workbook.hash, sheet: workbook.sheet, options, rows: workbook.rows, warnings: plan.warnings, imageFailures: media.failures, manifestPath: media.manifestPath, products: plan.products, categories: plan.categories };
     await writeFile(reportPath, JSON.stringify(report, null, 2), { mode: 0o600 });

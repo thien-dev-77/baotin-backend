@@ -95,9 +95,13 @@ but does not create a partially imported catalog.
 
 ## Media Across Redeployments
 
-The successfully stored media also lives in `media/imported/fulco/` (about 60 MB)
-with the same filenames as the backend uploads. `copy-runtime-assets.mjs` includes
-these assets for deployments using the default media root. When `MEDIA_DIR` is
+The import command exports its validated image cache to `MEDIA_DIR/imported/fulco/`
+on the machine running the command, with the same filenames as the backend uploads.
+Remote uploads use the target API's own `MEDIA_DIR/uploads/`. Without a configured
+root, the local export uses the normal source/build `media` directory.
+The existing repository copies (about 60 MB) in `media/imported/fulco/` are included
+by `copy-runtime-assets.mjs` for deployments using the default media root. This build
+step only packages repository assets; it never reads production storage. When `MEDIA_DIR` is
 configured, imported images are served and validated only from
 `MEDIA_DIR/imported/fulco/`; copy the existing files there before restarting.
 The existing `/media/uploads/` URLs remain valid. Files in `MEDIA_DIR/uploads/`

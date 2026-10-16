@@ -3,6 +3,7 @@ import { mkdir, readFile, writeFile, rename, access } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { pathToFileURL } from "node:url";
 import sharp from "sharp";
+import { productMediaRoot } from "../dist/media/product-media.js";
 
 const MAX_SOURCE_BYTES = 50 * 1024 * 1024;
 const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
@@ -86,7 +87,7 @@ export async function prepareFulcoMedia(sourceURLs, { cacheDir, remote, progress
   return { imageURLs, failures, uniqueImages: hashes.length, manifestPath };
 }
 
-export async function exportImportedMedia(manifestPath, destination) {
+export async function exportImportedMedia(manifestPath, destination = join(productMediaRoot(), "imported", "fulco")) {
   const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
   if (manifest.version !== 1) throw new Error("Unsupported media manifest.");
   await mkdir(destination, { recursive: true });

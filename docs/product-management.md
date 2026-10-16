@@ -138,6 +138,11 @@ For Hostinger, use a persistent directory outside `hbuilds/current`, for example
 `uploads`, `imported/fulco` and `images` directly inside. Copy the old media
 contents before restarting; no product URLs or database paths need changing.
 After restart, `Bao Tin media root: ...` in the API log identifies the root in use.
+Legacy `/images/...` URLs resolve under `MEDIA_DIR/images/`; `/media/...` URLs
+resolve relative to `MEDIA_DIR`. The homepage repair command uses the same
+resolver for image validation and Sharp metadata checks. Fulco import exports
+to the configured root on the machine running the command. Local API/UI QA
+cleanup also uses its configured media root, rather than a fixed `media/` folder.
 Every image in a batch is validated before any files are written.
 On write failure, newly written batch files are removed.
 

@@ -153,12 +153,14 @@ Ngay admin va receipts lay server time Asia/Ho_Chi_Minh, khong previewDate.
 
 ## Media
 
-Anh goc da chuyen frontend/public/images -> media/images trong repo BE, relative
-URL /images/* duoc Next Route Handler proxy. Upload /media/uploads/UUID.webp, URL luu
+URL /images/* duoc Next Route Handler proxy toi backend /media/images/*,
+doc file tu MEDIA_DIR/images. Upload /media/uploads/UUID.webp, URL luu
 Product.image/gallery, binary luu disk backend, khong luu PostgreSQL.
 Max5MB JPEG/PNG/WebP, Sharp validate bytes max20MP, rotate, resize<=2000px,
 encodeWebP; bo filename client, khong SVG. Admin products co upload control.
-media/images version trong Git; uploads ignored. Can persistent volume va
+Anh Fulco cu /media/uploads/* thu uploads truoc, sau do imported/fulco trong
+cung MEDIA_DIR. Khong fallback ve dist/media khi da set MEDIA_DIR.
+Build chi dong goi anh mau/import trong repo; uploads ignored. Can persistent volume va
 backup cung DB, khong dung ephemeral serverless filesystem. Chua delete/reorder
 gallery API; anh cu giu trong gallery. Mock assets chua verify moi SKU.
 

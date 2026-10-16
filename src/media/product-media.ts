@@ -3,7 +3,7 @@ import { resolve } from "node:path";
 import type { NestExpressApplication } from "@nestjs/platform-express";
 import { runtimeAssetPath } from "../runtime-assets";
 
-export const productMediaRoot = () => runtimeAssetPath(process.env.MEDIA_DIR || "media");
+export const productMediaRoot = (directory = process.env.MEDIA_DIR || "media") => runtimeAssetPath(directory);
 
 export async function configureProductMedia(app: Pick<NestExpressApplication, "useStaticAssets">) {
   const media = productMediaRoot();
@@ -16,10 +16,17 @@ export async function configureProductMedia(app: Pick<NestExpressApplication, "u
   return media;
 }
 
-export async function assertProductImageExists(url: string) {
+export async function resolveProductImagePath(url: string): Promise<string> {
   const media = productMediaRoot();
   const relative = url.startsWith("/images/") ? url.slice(1) : url.slice("/media/".length);
-  try { await access(resolve(media, relative)); return; } catch { /* Imported images use the same persistent media root. */ }
+  const path = resolve(media, relative);
+  try { await access(path); return path; } catch { /* Imported images use the same persistent media root. */ }
   if (!url.startsWith("/media/uploads/")) throw new Error("Image file does not exist.");
-  await access(resolve(media, "imported", "fulco", url.slice("/media/uploads/".length)));
+  const imported = resolve(media, "imported", "fulco", url.slice("/media/uploads/".length));
+  await access(imported);
+  return imported;
+}
+
+export async function assertProductImageExists(url: string) {
+  await resolveProductImagePath(url);
 }

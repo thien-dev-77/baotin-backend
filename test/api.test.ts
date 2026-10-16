@@ -6,6 +6,7 @@ import { Client } from "pg";
 import sharp from "sharp";
 import { unlink } from "node:fs/promises";
 import { resolve } from "node:path";
+import { productMediaRoot } from "../src/media/product-media";
 
 config({ path: ".env.local", quiet: true });
 const base = process.env.QA_API_URL || "http://127.0.0.1:4000/api";
@@ -167,7 +168,7 @@ test("Connected API: auth, ownership, server prices, Sales, approvals, warehouse
     else await sql.query(`DELETE FROM "${schema}".inventory_balances WHERE id=$1`, [`Quy Nhơn:${productId}`]);
     if (originalProduct) await sql.query(`UPDATE "${schema}".products SET data=$1,published=true WHERE id=$2`, [originalProduct, productId]);
     else await sql.query(`UPDATE "${schema}".products SET published=true WHERE id=$1`, [productId]);
-    if (uploaded) await unlink(resolve("media", uploaded.replace("/media/", ""))).catch(() => {});
+    if (/^\/media\/uploads\/[a-f0-9-]+\.webp$/.test(uploaded)) await unlink(resolve(productMediaRoot(), uploaded.slice("/media/".length))).catch(() => {});
     if (originalProfile) await sql.query(`UPDATE "${schema}".users SET profile=$1 WHERE email=$2`, [originalProfile, "kh001@baotin.local"]);
     if (leadId) await sql.query(`DELETE FROM "${schema}".leads WHERE id=$1`, [leadId]);
     if (newsletterEmail) await sql.query(`DELETE FROM "${schema}".newsletter_subscriptions WHERE email=$1`, [newsletterEmail]);
