@@ -110,7 +110,6 @@ test("Paginated catalog and historical order snapshots", { timeout: 120000 }, as
       } finally { await sql.query(`DELETE FROM "${schema}".products WHERE id = ANY($1::text[])`, [ids]); }
     });
     await t.test("Manual facets override descriptions, combine with scope, and publish only effective options", async () => {
-      const baseline = (await guest.call("/catalog/search")).data.facets;
       const products = [
         { material: "Inox 304", color: "Đen mờ", origin: "Germany" },
         { material: "Inox 304", materialGroups: ["plastic"], color: "Đen mờ", colorGroups: ["white"], origin: "Germany", originGroups: ["malaysia"] },
@@ -137,14 +136,55 @@ test("Paginated catalog and historical order snapshots", { timeout: 120000 }, as
         }
         const response = await guest.call("/catalog/search?brand=QA%20Facets&colorGroup=white&originGroup=malaysia&category=led-tu-ke&pageSize=1&page=2");
         assert.equal(response.data.total, 2); assert.equal(response.data.page, 2);
-        assert.deepEqual(new Set(response.data.facets.colorGroup), new Set([...baseline.colorGroup, "black", "white"]), "private overrides must not leak into facets");
-        assert.deepEqual(new Set(response.data.facets.originGroup), new Set([...baseline.originGroup, "germany", "malaysia"]));
+        assert.deepEqual(new Set(response.data.facets.colorGroup), new Set(["black", "white"]), "unrelated/private overrides must not leak into scoped facets");
+        assert.deepEqual(new Set(response.data.facets.originGroup), new Set(["germany", "malaysia"]));
         assert.ok(response.data.facets.colorGroup.includes("white"));
         assert.equal(response.data.products[0].color, "White", "grouping must preserve detailed text");
         for (const query of ["colorGroup=bad", "originGroup=bad", "colorGroup=" + "x".repeat(100), ...["colorGroup", "originGroup"].map(key => Array.from({ length: 32 }, () => `${key}=other`).join("&"))]) {
           assert.equal((await guest.call("/catalog/search?" + query)).status, 400);
         }
       } finally { await sql.query(`DELETE FROM "${schema}".products WHERE id = ANY($1::text[])`, [ids]); }
+    });
+    await t.test("Facet options follow category descendants, brand and search across every page and SKU", async () => {
+      const root = "qa-facet-scope", child = "qa-facet-scope-child";
+      const ids = ["QA-SCOPE-BLACK", "QA-SCOPE-BLANK", "QA-SCOPE-OUTSIDE", "QA-SCOPE-PRIVATE", "QA-SCOPE-WHITE"];
+      for (const [slug, parentSlug] of [[root, ""], [child, root]]) {
+        await sql.query(`INSERT INTO "${schema}".categories (slug,data,revision) VALUES ($1,$2,1)`, [slug, { slug, name: slug, parentSlug, visible: true, image: "", description: "", subcategories: [] }]);
+      }
+      const data = [
+        { category: child, brand: "Scope Alpha", name: "Scope inside black", color: "Đen", colorGroups: ["black"], material: "Thép", origin: "Việt Nam", variantGroupId: ids[0] },
+        { category: child, brand: "Scope Alpha", name: "Scope inside blank", color: "", material: "", origin: "" },
+        { category: "led-tu-ke", brand: "Scope Beta", name: "Scope outside white", color: "Trắng", material: "Nhựa", origin: "Germany" },
+        { category: child, brand: "Scope Alpha", name: "Scope private gold", color: "Vàng", colorGroups: ["gold"], material: "Đồng", origin: "Italy" },
+      ];
+      const insert = async (index: number, fields: object, published = true) => {
+        const product = { ...template, id: ids[index], slug: ids[index].toLowerCase(), code: ids[index], price: 100000, featured: false, subcategory: "", ...fields };
+        await sql.query(`INSERT INTO "${schema}".products (id,slug,data,published,revision) VALUES ($1,$2,$3,$4,1)`, [product.id, product.slug, product, published]);
+      };
+      try {
+        for (const [index, fields] of data.entries()) await insert(index, fields, index !== 3);
+        const scoped = (await guest.call(`/catalog/search?category=${root}&pageSize=1`)).data;
+        assert.equal(scoped.total, 2);
+        assert.deepEqual(scoped.facets.colorGroup, ["black"]);
+        assert.deepEqual(scoped.facets.originGroup, ["vietnam"]);
+        assert.deepEqual(scoped.facets.materialGroup, ["steel"]);
+        const empty = (await guest.call(`/catalog/search?category=${root}&colorGroup=white`)).data;
+        assert.equal(empty.total, 0); assert.deepEqual(empty.facets.colorGroup, ["black"]);
+        assert.deepEqual((await guest.call("/catalog/search?brand=Scope%20Beta")).data.facets.colorGroup, ["white"]);
+        assert.deepEqual((await guest.call("/catalog/search?q=Scope%20inside")).data.facets.colorGroup, ["black"]);
+        assert.deepEqual((await guest.call("/catalog/search?q=Scope%20missing")).data.facets.colorGroup, []);
+        assert.ok((await guest.call("/catalog/search")).data.facets.colorGroup.includes("white"), "global metadata still includes published colors from other categories");
+        await insert(4, { ...data[0], name: "Scope inside white", color: "Trắng", colorGroups: ["white"] });
+        const withVariant = (await guest.call(`/catalog/search?category=${root}&colorGroup=black&pageSize=1`)).data;
+        assert.equal(withVariant.products.length, 1);
+        assert.deepEqual(withVariant.facets.colorGroup, ["black", "white"], "a different color in another SKU must remain selectable");
+        const white = (await guest.call(`/catalog/search?category=${root}&colorGroup=white&pageSize=1`)).data;
+        assert.equal(white.total, 1); assert.equal(white.products[0].id, ids[4]);
+        assert.deepEqual(white.facets.colorGroup, ["black", "white"]);
+      } finally {
+        await sql.query(`DELETE FROM "${schema}".products WHERE id = ANY($1::text[])`, [ids]);
+        await sql.query(`DELETE FROM "${schema}".categories WHERE slug = ANY($1::text[])`, [[root, child]]);
+      }
     });
     await t.test("Cards receive published review aggregates without pending/rejected reviews", async () => {
       for (const [stars, status] of [[5, "published"], [3, "published"], [1, "pending"], [1, "rejected"]] as const) {

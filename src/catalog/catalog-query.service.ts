@@ -1,5 +1,5 @@
 import { BadRequestException, Injectable } from "@nestjs/common";
-import { In } from "typeorm";
+import { In, type SelectQueryBuilder } from "typeorm";
 import { DatabaseService } from "../database/database.service";
 import { CategoryEntity, CustomerEntity, ProductEntity, type UserEntity } from "../database/entities";
 import { LedgerService } from "../ledger/ledger.service";
@@ -24,6 +24,10 @@ export const normalizeSearch = (text: string) => text.normalize("NFD").replace(/
 const sqlSearch = `lower(translate(normalize(concat_ws(' ', p.data->>'name', p.data->>'code', p.data->>'alternateCode', p.data->>'brand', p.data->>'specification'), NFC), '${accents}${accents.toUpperCase()}', '${plain}${plain.toUpperCase()}'))`;
 const escapeLike = (value: string) => value.replace(/[\\%_]/g, "\\$&");
 type Candidate = PricingProduct & { id: string; variantGroupId?: string; stock: number; featured: boolean; createdAt: Date };
+const groupedFacets = (values: ProductFacetData[]) => Object.fromEntries(PRODUCT_FACET_FIELDS.map(field => {
+  const present = new Set(values.flatMap(value => productFacetGroups(value, field)));
+  return [PRODUCT_FACETS[field].queryField, PRODUCT_FACETS[field].options.filter(option => present.has(option.value)).map(option => option.value)];
+})) as Record<ProductFacetQuery, string[]>;
 
 @Injectable()
 export class CatalogQueryService {
@@ -38,11 +42,15 @@ export class CatalogQueryService {
         .where("p.published = true").distinct(true).getRawMany<Record<typeof facetFields[number], string> & ProductFacetData>(),
     ]);
     const facets = Object.fromEntries(facetFields.map(field => [field, Array.from(new Set(values.map(value => value[field]).filter(Boolean))).sort((a, b) => a.localeCompare(b, "vi"))])) as Record<typeof facetFields[number], string[]>;
-    const grouped = Object.fromEntries(PRODUCT_FACET_FIELDS.map(field => {
-      const present = new Set(values.flatMap(value => productFacetGroups(value, field)));
-      return [PRODUCT_FACETS[field].queryField, PRODUCT_FACETS[field].options.filter(option => present.has(option.value)).map(option => option.value)];
-    })) as Record<ProductFacetQuery, string[]>;
-    return { categories: orderedCategories(categories, true), brands: facets.brand, facets: { ...facets, ...grouped } };
+    return { categories: orderedCategories(categories, true), brands: facets.brand, facets: { ...facets, ...groupedFacets(values) } };
+  }
+
+  private async scopeFacets(query: SelectQueryBuilder<ProductEntity>) {
+    const values = await query.select(PRODUCT_FACET_FIELDS.flatMap(field => [
+      `p.data->>'${field}' AS "${field}"`,
+      `p.data->'${PRODUCT_FACETS[field].selectionField}' AS "${PRODUCT_FACETS[field].selectionField}"`,
+    ])).distinct(true).getRawMany<ProductFacetData>();
+    return groupedFacets(values);
   }
 
   private async context(user?: UserEntity) {
@@ -121,8 +129,23 @@ export class CatalogQueryService {
     if (input.min !== undefined && input.max !== undefined && input.min > input.max) throw new BadRequestException("Giá từ không được lớn hơn giá đến.");
     const metadata = await this.metadata();
     const query = this.db.source.getRepository(ProductEntity).createQueryBuilder("p").where("p.published = true");
-    for (const field of ["category", ...facetFields] as const) {
+    for (const field of ["category", "brand"] as const) {
       if (input[field]?.length) query.andWhere(`p.data->>'${field}' IN (:...${field})`, { [field]: field === "category" ? [...new Set(input.category!.flatMap(slug => categoryDescendants(metadata.categories, slug)))] : input[field] });
+    }
+    if (input.subcategory) query.andWhere("p.data->>'subcategory' = :subcategory", { subcategory: input.subcategory });
+    if (input.promotion) query.andWhere("(p.data->>'oldPrice')::numeric > (p.data->>'price')::numeric");
+    if (input.featured !== undefined) query.andWhere("(p.data->>'featured')::boolean = :featured", { featured: input.featured });
+    const terms = normalizeSearch(input.q || "").trim().split(/\s+/).filter(Boolean);
+    terms.forEach((term, index) => {
+      query.andWhere(`${sqlSearch} LIKE :term${index}`, { [`term${index}`]: `%${escapeLike(term)}%` });
+    });
+    // Options belong to the current category (including descendants), brand
+    // and search, across every matching SKU before pagination/deduplication.
+    // Keep alternatives available when a facet is selected or yields no rows.
+    const scoped = Boolean(input.category?.length || input.brand?.length || input.subcategory || input.promotion || input.featured !== undefined || terms.length);
+    const facetScope = scoped ? query.clone() : undefined;
+    for (const field of ["material", "color", "size", "origin"] as const) {
+      if (input[field]?.length) query.andWhere(`p.data->>'${field}' IN (:...${field})`, { [field]: input[field] });
     }
     for (const field of PRODUCT_FACET_FIELDS) {
       const definition = PRODUCT_FACETS[field];
@@ -137,19 +160,15 @@ export class CatalogQueryService {
         ELSE ${fallback.length ? `p.data->>'${field}' IN (:...${textParameter})` : "false"} END`,
       { [groupParameter]: selected, ...(fallback.length ? { [textParameter]: fallback } : {}) });
     }
-    if (input.subcategory) query.andWhere("p.data->>'subcategory' = :subcategory", { subcategory: input.subcategory });
-    if (input.promotion) query.andWhere("(p.data->>'oldPrice')::numeric > (p.data->>'price')::numeric");
-    if (input.featured !== undefined) query.andWhere("(p.data->>'featured')::boolean = :featured", { featured: input.featured });
-    normalizeSearch(input.q || "").trim().split(/\s+/).filter(Boolean).forEach((term, index) => {
-      query.andWhere(`${sqlSearch} LIKE :term${index}`, { [`term${index}`]: `%${escapeLike(term)}%` });
-    });
     // Rank lightweight rows, not full galleries/descriptions. Derived price and
     // available stock reuse the same policies/reservations as checkout.
     query.select("p.id", "id").addSelect("(p.data->>'price')::numeric", "price")
       .addSelect("p.data->>'variantGroupId'", "variantGroupId")
       .addSelect("(p.data->>'listPrice')::numeric", "listPrice").addSelect("(p.data->>'b2cDiscount')::numeric", "b2cDiscount").addSelect("(p.data->>'b2bDiscount')::numeric", "b2bDiscount")
       .addSelect("(p.data->>'stock')::integer", "stock").addSelect("(p.data->>'featured')::boolean", "featured").addSelect("p.createdAt", "createdAt");
-    const [raw, context] = await Promise.all([query.getRawMany<Candidate>(), this.context(user)]);
+    const [raw, context, scopedGroups] = await Promise.all([
+      query.getRawMany<Candidate>(), this.context(user), facetScope ? this.scopeFacets(facetScope) : undefined,
+    ]);
     const policy = selectPricePolicy(context.customer, context.customer ? await this.pricing.list(context.branch) : [], today());
     const candidates = await this.ledger.stock(raw.map(row => ({ ...row, price: Number(row.price), stock: Number(row.stock), listPrice: row.listPrice == null ? undefined : Number(row.listPrice), b2cDiscount: row.b2cDiscount == null ? undefined : Number(row.b2cDiscount), b2bDiscount: row.b2bDiscount == null ? undefined : Number(row.b2bDiscount) })), context.branch);
     const activeB2b = context.customer?.status === "Đang hoạt động";
@@ -183,6 +202,7 @@ export class CatalogQueryService {
       const retail = activeB2b ? retailProjection(product) : publicProduct(product);
       return [{ ...retail, stock: row.stock, ...(activeB2b ? { customerPrice: price(row) } : {}) }];
     });
-    return { products: await this.withReviewSummaries(products), total, page, pageSize: input.pageSize, totalPages, ...metadata };
+    return { products: await this.withReviewSummaries(products), total, page, pageSize: input.pageSize, totalPages, ...metadata,
+      facets: { ...metadata.facets, ...scopedGroups } };
   }
 }

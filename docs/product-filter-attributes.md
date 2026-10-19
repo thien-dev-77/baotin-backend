@@ -16,7 +16,13 @@ parameters. Values within a facet use OR; different facets and existing catalog
 constraints use AND. Filtering still occurs before variant deduplication and
 pagination. Explicit selections override aliases in SQL, including empty arrays.
 Only effective groups from published products appear in the new metadata fields
-`facets.materialGroup`, `facets.colorGroup`, `facets.originGroup`.
+`facets.materialGroup`, `facets.colorGroup`, `facets.originGroup`. Search responses
+scope those choices to the current category and descendants, brand, keyword,
+subcategory and promotion/featured context. Options cover all matching SKUs
+before pagination and variant deduplication. Selecting a material/color/origin
+does not remove alternative values in that scope, including when the selection
+has zero results. A category with no color data returns an empty color group
+list instead of offering colors from unrelated categories.
 The old exact `material`, `color`, `origin` parameters and metadata remain valid.
 
 Copying material or origin content to sibling SKUs copies its filter selections
