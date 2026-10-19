@@ -12,6 +12,7 @@ import { groupRepresentatives } from "./product-variants";
 import { ReviewEntity } from "../database/experience.entities";
 import { categoryDescendants } from "./category-tree";
 import type { Category } from "../types/domain.types";
+import { matchesMaterialGroups } from "./material-groups";
 
 const facetFields = ["brand", "material", "color", "size", "origin"] as const;
 const HOME_CATEGORY_SECTIONS = 5;
@@ -117,6 +118,11 @@ export class CatalogQueryService {
     const query = this.db.source.getRepository(ProductEntity).createQueryBuilder("p").where("p.published = true");
     for (const field of ["category", ...facetFields] as const) {
       if (input[field]?.length) query.andWhere(`p.data->>'${field}' IN (:...${field})`, { [field]: field === "category" ? [...new Set(input.category!.flatMap(slug => categoryDescendants(metadata.categories, slug)))] : input[field] });
+    }
+    if (input.materialGroup?.length) {
+      const materials = metadata.facets.material.filter(value => matchesMaterialGroups(value, input.materialGroup!));
+      if (materials.length) query.andWhere("p.data->>'material' IN (:...groupMaterials)", { groupMaterials: materials });
+      else query.andWhere("1 = 0");
     }
     if (input.subcategory) query.andWhere("p.data->>'subcategory' = :subcategory", { subcategory: input.subcategory });
     if (input.promotion) query.andWhere("(p.data->>'oldPrice')::numeric > (p.data->>'price')::numeric");

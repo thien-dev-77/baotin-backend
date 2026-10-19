@@ -72,6 +72,43 @@ test("Paginated catalog and historical order snapshots", { timeout: 120000 }, as
       const bootstrap = (await guest.call("/catalog/bootstrap")).data;
       assert.ok(bootstrap.products.length <= 55); assert.ok(bootstrap.brands.includes("QA Brand B"));
     });
+    await t.test("Material groups match synonyms and compounds without changing exact legacy filters", async () => {
+      const materials = ["SUS304", "SUS 304", "Inox 304 xước mờ", "Inox SUS304 và nhựa ABS", "Khung thép sơn tĩnh điện + inox 304", "Khung làm bằng nhôm, ray bằng thép", "Khung sườn bằng nhôm, ray bằng thép không gỉ", "Thép", "Polyamid", "Cửa kính toàn phần, 3 lớp cách nhiệt", "Mặt gốm thủy tinh SCHOTT Ceran", "Thân Zamak", "Đồng mạ crôm và đá granite", "Silicone", "Vật liệu chưa công bố", "Gỗ QA riêng tư"];
+      const ids = materials.map((_, index) => `QA-MATERIAL-${index}`);
+      try {
+        for (const [index, material] of materials.entries()) {
+          const product = { ...template, id: ids[index], slug: `qa-material-${index}`, code: ids[index], name: `QA material groups ${index}`, category: "led-tu-ke", subcategory: "LED dây", brand: "QA Material Brand", material, price: 100000 + index * 1000, stock: 5, featured: false };
+          await sql.query(`INSERT INTO "${schema}".products (id,slug,data,published,revision) VALUES ($1,$2,$3,$4,1)`, [product.id, product.slug, product, index !== 15]);
+        }
+        const search = (query: string) => guest.call("/catalog/search?q=qa%20material%20groups&pageSize=60&" + query);
+        for (const [query, indices] of [
+          ["materialGroup=inox-304", [0, 1, 2, 3, 4]],
+          ["materialGroup=plastic", [3, 8]],
+          ["materialGroup=steel", [4, 5, 7]],
+          ["materialGroup=inox-other", [6]],
+          ["materialGroup=inox-304&materialGroup=steel", [0, 1, 2, 3, 4, 5, 7]],
+          ["materialGroup=glass", [9, 10]],
+          ["materialGroup=other", [14]],
+          ["materialGroup=wood", []],
+          ["material=SUS304", [0]],
+          ["materialGroup=inox-304&material=SUS304", [0]],
+        ] as const) {
+          const result = await search(query);
+          assert.equal(result.status, 200, JSON.stringify(result.data));
+          assert.equal(result.data.total, indices.length, query);
+          assert.deepEqual(new Set(result.data.products.map((row: Product) => row.id)), new Set(indices.map(index => ids[index])), query);
+        }
+        const page = await guest.call("/catalog/search?q=qa%20material%20groups&brand=QA%20Material%20Brand&category=led-tu-ke&materialGroup=inox-304&sort=low&pageSize=2&page=2");
+        assert.equal(page.data.total, 5); assert.equal(page.data.totalPages, 3);
+        assert.deepEqual(page.data.products.map((row: Product) => row.id), [ids[2], ids[3]]);
+        const exact = await search("material=SUS304");
+        assert.equal(exact.data.products[0].material, "SUS304");
+        assert.ok(exact.data.facets.material.includes("SUS304"));
+        assert.ok(!exact.data.facets.material.includes("Gỗ QA riêng tư"));
+        assert.equal((await search("materialGroup=not-a-group")).status, 400);
+        assert.equal((await search(Array.from({ length: 32 }, () => "materialGroup=steel").join("&"))).status, 400);
+      } finally { await sql.query(`DELETE FROM "${schema}".products WHERE id = ANY($1::text[])`, [ids]); }
+    });
     await t.test("Cards receive published review aggregates without pending/rejected reviews", async () => {
       for (const [stars, status] of [[5, "published"], [3, "published"], [1, "pending"], [1, "rejected"]] as const) {
         await sql.query(`INSERT INTO "${schema}".product_reviews (id,"productId","userId",name,stars,text,status,revision) VALUES ($1,$2,$3,$4,$5,$6,$7,1)`, [randomUUID(), fixtures[0].id, randomUUID(), "QA Reviewer", stars, "QA review text", status]);
