@@ -12,7 +12,7 @@ import { groupRepresentatives } from "./product-variants";
 import { ReviewEntity } from "../database/experience.entities";
 import { categoryDescendants } from "./category-tree";
 import type { Category } from "../types/domain.types";
-import { matchesMaterialGroups } from "./material-groups";
+import { inferredFacetGroups, productFacetGroups, PRODUCT_FACET_FIELDS, PRODUCT_FACETS, type ProductFacetData, type ProductFacetQuery } from "./product-filter-attributes";
 
 const facetFields = ["brand", "material", "color", "size", "origin"] as const;
 const HOME_CATEGORY_SECTIONS = 5;
@@ -33,11 +33,16 @@ export class CatalogQueryService {
     const [categories, values] = await Promise.all([
       this.db.source.getRepository(CategoryEntity).find(),
       this.db.source.getRepository(ProductEntity).createQueryBuilder("p")
-        .select(facetFields.map(field => `p.data->>'${field}' AS "${field}"`))
-        .where("p.published = true").distinct(true).getRawMany<Record<typeof facetFields[number], string>>(),
+        .select([...facetFields.map(field => `p.data->>'${field}' AS "${field}"`),
+          ...PRODUCT_FACET_FIELDS.map(field => `p.data->'${PRODUCT_FACETS[field].selectionField}' AS "${PRODUCT_FACETS[field].selectionField}"`)])
+        .where("p.published = true").distinct(true).getRawMany<Record<typeof facetFields[number], string> & ProductFacetData>(),
     ]);
     const facets = Object.fromEntries(facetFields.map(field => [field, Array.from(new Set(values.map(value => value[field]).filter(Boolean))).sort((a, b) => a.localeCompare(b, "vi"))])) as Record<typeof facetFields[number], string[]>;
-    return { categories: orderedCategories(categories, true), brands: facets.brand, facets };
+    const grouped = Object.fromEntries(PRODUCT_FACET_FIELDS.map(field => {
+      const present = new Set(values.flatMap(value => productFacetGroups(value, field)));
+      return [PRODUCT_FACETS[field].queryField, PRODUCT_FACETS[field].options.filter(option => present.has(option.value)).map(option => option.value)];
+    })) as Record<ProductFacetQuery, string[]>;
+    return { categories: orderedCategories(categories, true), brands: facets.brand, facets: { ...facets, ...grouped } };
   }
 
   private async context(user?: UserEntity) {
@@ -119,10 +124,18 @@ export class CatalogQueryService {
     for (const field of ["category", ...facetFields] as const) {
       if (input[field]?.length) query.andWhere(`p.data->>'${field}' IN (:...${field})`, { [field]: field === "category" ? [...new Set(input.category!.flatMap(slug => categoryDescendants(metadata.categories, slug)))] : input[field] });
     }
-    if (input.materialGroup?.length) {
-      const materials = metadata.facets.material.filter(value => matchesMaterialGroups(value, input.materialGroup!));
-      if (materials.length) query.andWhere("p.data->>'material' IN (:...groupMaterials)", { groupMaterials: materials });
-      else query.andWhere("1 = 0");
+    for (const field of PRODUCT_FACET_FIELDS) {
+      const definition = PRODUCT_FACETS[field];
+      const selected: readonly string[] | undefined = input[definition.queryField];
+      if (!selected?.length) continue;
+      const fallback = metadata.facets[field].filter(value => inferredFacetGroups(field, value).some(group => selected.includes(group)));
+      const groupParameter = `${field}Groups`, textParameter = `${field}Descriptions`;
+      // Only allowlisted field names enter SQL. Manual [] stays empty; missing
+      // or null selections retain legacy text inference. All values are bound.
+      query.andWhere(`CASE WHEN jsonb_typeof(p.data->'${definition.selectionField}') = 'array'
+        THEN (p.data->'${definition.selectionField}') ?| ARRAY[:...${groupParameter}]::text[]
+        ELSE ${fallback.length ? `p.data->>'${field}' IN (:...${textParameter})` : "false"} END`,
+      { [groupParameter]: selected, ...(fallback.length ? { [textParameter]: fallback } : {}) });
     }
     if (input.subcategory) query.andWhere("p.data->>'subcategory' = :subcategory", { subcategory: input.subcategory });
     if (input.promotion) query.andWhere("(p.data->>'oldPrice')::numeric > (p.data->>'price')::numeric");

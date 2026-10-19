@@ -33,7 +33,10 @@ export class ProductVariantCopyService {
       if (rows.some(row => row.revision !== revisions.get(row.id))) throw new ConflictException("Một SKU đã thay đổi ở phiên khác. Tải lại nhóm trước khi áp dụng.");
 
       // Select only common content. SKU identity, pricing, inventory and variant values stay on each target.
-      const changes = Object.fromEntries(input.fields.map(field => [field, source.data[field] ?? (field === "gallery" ? [] : "")]));
+      const changes: Record<string, string | string[] | null> = Object.fromEntries(input.fields.map(field => [field, source.data[field] ?? (field === "gallery" ? [] : "")]));
+      for (const field of ["material", "origin"] as const) {
+        if (input.fields.includes(field)) changes[`${field}Groups`] = source.data[`${field}Groups`] ?? null;
+      }
       if (input.fields.includes("technicalDetails")) changes.specification = source.data.specification;
       if (input.fields.includes("gallery")) {
         const gallery = source.data.gallery || [];

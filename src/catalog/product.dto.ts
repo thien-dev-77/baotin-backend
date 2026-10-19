@@ -1,8 +1,9 @@
 import { Transform } from "class-transformer";
-import { ArrayMaxSize, ArrayUnique, IsArray, IsBoolean, IsInt, IsNumber, IsOptional, IsString, Length, Matches, Max, MaxLength, Min, ValidateNested } from "class-validator";
+import { ArrayMaxSize, ArrayUnique, IsArray, IsBoolean, IsIn, IsInt, IsNumber, IsOptional, IsString, Length, Matches, Max, MaxLength, Min, ValidateNested } from "class-validator";
 import { Type } from "class-transformer";
 import { MAX_PRODUCT_PRICE, MAX_PRODUCT_DISCOUNT } from "./product-pricing";
 import { MAX_PRODUCT_GALLERY, MAX_VARIANT_LABEL_LENGTH } from "./product.constants";
+import { PRODUCT_FACETS } from "./product-filter-attributes";
 
 const trim = Transform(({ value }) => typeof value === "string" ? value.trim() : value);
 export const productImagePattern = /^\/(?:images|media\/(?:images|uploads))\/[a-zA-Z0-9/_-]+\.(?:jpe?g|png|webp)$/;
@@ -31,6 +32,12 @@ export class ProductDto {
   @trim @IsString() @MaxLength(100) color!: string;
   @trim @IsString() @MaxLength(100) size!: string;
   @trim @IsString() @MaxLength(100) origin!: string;
+  @IsOptional() @IsArray() @ArrayUnique() @ArrayMaxSize(PRODUCT_FACETS.material.options.length)
+  @IsIn(PRODUCT_FACETS.material.options.map(option => option.value), { each: true }) materialGroups?: string[] | null;
+  @IsOptional() @IsArray() @ArrayUnique() @ArrayMaxSize(PRODUCT_FACETS.color.options.length)
+  @IsIn(PRODUCT_FACETS.color.options.map(option => option.value), { each: true }) colorGroups?: string[] | null;
+  @IsOptional() @IsArray() @ArrayUnique() @ArrayMaxSize(PRODUCT_FACETS.origin.options.length)
+  @IsIn(PRODUCT_FACETS.origin.options.map(option => option.value), { each: true }) originGroups?: string[] | null;
   @trim @IsString() @MaxLength(10000) description!: string;
   @IsOptional() @trim @IsString() @MaxLength(80) alternateCode?: string;
   @IsOptional() @trim @IsString() @MaxLength(300) @Matches(/^(?:|https:\/\/[^\s]+)$/) sourceUrl?: string;

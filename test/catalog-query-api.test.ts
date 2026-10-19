@@ -109,6 +109,43 @@ test("Paginated catalog and historical order snapshots", { timeout: 120000 }, as
         assert.equal((await search(Array.from({ length: 32 }, () => "materialGroup=steel").join("&"))).status, 400);
       } finally { await sql.query(`DELETE FROM "${schema}".products WHERE id = ANY($1::text[])`, [ids]); }
     });
+    await t.test("Manual facets override descriptions, combine with scope, and publish only effective options", async () => {
+      const baseline = (await guest.call("/catalog/search")).data.facets;
+      const products = [
+        { material: "Inox 304", color: "Đen mờ", origin: "Germany" },
+        { material: "Inox 304", materialGroups: ["plastic"], color: "Đen mờ", colorGroups: ["white"], origin: "Germany", originGroups: ["malaysia"] },
+        { material: "Inox 304", materialGroups: [], color: "Đen", colorGroups: [], origin: "Germany", originGroups: [] },
+        { material: "SUS304", materialGroups: null, color: "White", colorGroups: null, origin: "Made in Malaysia", originGroups: null },
+        { material: "Nhựa", materialGroups: ["plastic"], color: "Đen", colorGroups: ["gold"], origin: "Germany", originGroups: ["italy"] },
+      ];
+      const ids = products.map((_, index) => `QA-FACET-${index}`);
+      try {
+        for (const [index, fields] of products.entries()) {
+          const product = { ...template, ...fields, id: ids[index], slug: `qa-facet-${index}`, code: ids[index], name: `QA explicit facets ${index}`, brand: "QA Facets", category: "led-tu-ke", subcategory: "LED dây", price: 100000, featured: false };
+          await sql.query(`INSERT INTO "${schema}".products (id,slug,data,published,revision) VALUES ($1,$2,$3,$4,1)`, [product.id, product.slug, product, index !== 4]);
+        }
+        for (const [query, expected] of [
+          ["materialGroup=inox-304", [0, 3]], ["materialGroup=plastic", [1]],
+          ["colorGroup=black", [0]], ["colorGroup=white", [1, 3]],
+          ["colorGroup=white&colorGroup=black", [0, 1, 3]], ["originGroup=germany", [0]],
+          ["originGroup=malaysia", [1, 3]], ["colorGroup=white&originGroup=malaysia&materialGroup=plastic", [1]],
+          ["color=Đen mờ", [0, 1]], ["origin=Germany", [0, 1, 2]],
+        ] as const) {
+          const response = await guest.call("/catalog/search?brand=QA%20Facets&pageSize=60&" + query);
+          assert.equal(response.status, 200, JSON.stringify(response.data));
+          assert.deepEqual(new Set(response.data.products.map((product: Product) => product.id)), new Set(expected.map(index => ids[index])), query);
+        }
+        const response = await guest.call("/catalog/search?brand=QA%20Facets&colorGroup=white&originGroup=malaysia&category=led-tu-ke&pageSize=1&page=2");
+        assert.equal(response.data.total, 2); assert.equal(response.data.page, 2);
+        assert.deepEqual(new Set(response.data.facets.colorGroup), new Set([...baseline.colorGroup, "black", "white"]), "private overrides must not leak into facets");
+        assert.deepEqual(new Set(response.data.facets.originGroup), new Set([...baseline.originGroup, "germany", "malaysia"]));
+        assert.ok(response.data.facets.colorGroup.includes("white"));
+        assert.equal(response.data.products[0].color, "White", "grouping must preserve detailed text");
+        for (const query of ["colorGroup=bad", "originGroup=bad", "colorGroup=" + "x".repeat(100), ...["colorGroup", "originGroup"].map(key => Array.from({ length: 32 }, () => `${key}=other`).join("&"))]) {
+          assert.equal((await guest.call("/catalog/search?" + query)).status, 400);
+        }
+      } finally { await sql.query(`DELETE FROM "${schema}".products WHERE id = ANY($1::text[])`, [ids]); }
+    });
     await t.test("Cards receive published review aggregates without pending/rejected reviews", async () => {
       for (const [stars, status] of [[5, "published"], [3, "published"], [1, "pending"], [1, "rejected"]] as const) {
         await sql.query(`INSERT INTO "${schema}".product_reviews (id,"productId","userId",name,stars,text,status,revision) VALUES ($1,$2,$3,$4,$5,$6,$7,1)`, [randomUUID(), fixtures[0].id, randomUUID(), "QA Reviewer", stars, "QA review text", status]);

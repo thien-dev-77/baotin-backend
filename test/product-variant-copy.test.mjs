@@ -50,9 +50,9 @@ test("variant content copy is selective, atomic, revision guarded and restricted
       const result = await call("/admin/products", { ...draft, ...changes }, cookies.admin);
       assert.equal(result.status, 201, JSON.stringify(result.data)); return result.data.product;
     };
-    const source = await create({});
-    const second = await create({ name: "Giá bát 800 cũ", code: "NSP-00180", slug: "copy-800", variantGroupId: source.id, variantAttributes: [{ name: "Kích thước", value: "800mm" }], description: "Mô tả riêng", technicalDetails: "Model: NSP-00180", listPrice: 23210000, warranty: "2 năm", gallery: [] });
-    const third = await create({ name: "Giá bát 900 cũ", code: "NSP-00181", slug: "copy-900", variantGroupId: source.id, variantAttributes: [{ name: "Kích thước", value: "900mm" }], description: "Nội dung riêng khác", technicalDetails: "Model: NSP-00181", listPrice: 24990000 });
+    const source = await create({ materialGroups: ["inox-304"], originGroups: ["malaysia"] });
+    const second = await create({ name: "Giá bát 800 cũ", code: "NSP-00180", slug: "copy-800", variantGroupId: source.id, variantAttributes: [{ name: "Kích thước", value: "800mm" }], description: "Mô tả riêng", technicalDetails: "Model: NSP-00180", listPrice: 23210000, warranty: "2 năm", gallery: [], materialGroups: ["steel"], originGroups: ["china"] });
+    const third = await create({ name: "Giá bát 900 cũ", code: "NSP-00181", slug: "copy-900", variantGroupId: source.id, variantAttributes: [{ name: "Kích thước", value: "900mm" }], description: "Nội dung riêng khác", technicalDetails: "Model: NSP-00181", listPrice: 24990000, originGroups: null });
     const outsider = await create({ code: "OTHER", slug: "copy-other", variantGroupId: undefined, variantAttributes: undefined });
     const stored = async id => (await sql.query('SELECT * FROM bulk_qa.products WHERE id=$1', [id])).rows[0];
     const choose = product => ({ id: product.id, revision: product.revision });
@@ -85,14 +85,15 @@ test("variant content copy is selective, atomic, revision guarded and restricted
     assert.deepEqual(await stored(source.id), beforeSource);
     assert.equal((await call(endpoint, payload, cookies.admin)).status, 409);
     const updatedSecond = await stored(second.id);
-    const copyTechnical = await call(endpoint, { revision: source.revision, fields: ["technicalDetails", "gallery", "warranty"], products: [{ id: second.id, revision: updatedSecond.revision }] }, cookies.admin);
+    const copyTechnical = await call(endpoint, { revision: source.revision, fields: ["technicalDetails", "gallery", "warranty", "material", "origin"], products: [{ id: second.id, revision: updatedSecond.revision }] }, cookies.admin);
     assert.equal(copyTechnical.status, 201, JSON.stringify(copyTechnical.data));
     const technical = await stored(second.id);
-    assert.deepEqual(technical.data, { ...updatedSecond.data, technicalDetails: source.technicalDetails, specification: source.specification, warranty: source.warranty, gallery: source.gallery, image: source.gallery[0] });
+    assert.deepEqual(technical.data, { ...updatedSecond.data, technicalDetails: source.technicalDetails, specification: source.specification, warranty: source.warranty, gallery: source.gallery, image: source.gallery[0], material: source.material, materialGroups: source.materialGroups, origin: source.origin, originGroups: source.originGroups });
     assert.equal((await stored(third.id)).revision, beforeThird.revision + 1);
     // Any SKU can be the source, including a child rather than the group anchor.
     const childCopy = await call(`/admin/products/${third.id}/copy-to-variants`, { revision: beforeThird.revision + 1, fields: ["origin"], products: [{ id: source.id, revision: source.revision }] }, cookies.admin);
     assert.equal(childCopy.status, 201, JSON.stringify(childCopy.data));
+    assert.equal((await stored(source.id)).data.originGroups, null, "copying automatic origin must clear the previous manual group");
     await sql.query("UPDATE bulk_qa.products SET data=jsonb_set(jsonb_set(data,'{gallery}','[]'),'{specification}','\"\"'),revision=revision+1 WHERE id=$1", [source.id]);
     await sql.query("UPDATE bulk_qa.products SET published=true WHERE id=$1", [third.id]);
     const invalidSource = await stored(source.id), beforeRollbackSecond = await stored(second.id), beforeRollbackThird = await stored(third.id);
@@ -100,7 +101,7 @@ test("variant content copy is selective, atomic, revision guarded and restricted
     assert.equal(invalidCopy.status, 400, JSON.stringify(invalidCopy.data));
     assert.deepEqual(await stored(second.id), beforeRollbackSecond); assert.deepEqual(await stored(third.id), beforeRollbackThird);
     const audit = (await sql.query("SELECT detail FROM bulk_qa.audit_events WHERE action='product-variant-content-copy' AND \"resourceId\"=$1 ORDER BY at DESC LIMIT 1", [source.id])).rows[0]?.detail;
-    assert.deepEqual(audit.fields, ["technicalDetails", "gallery", "warranty"]);
+    assert.deepEqual(audit.fields, ["technicalDetails", "gallery", "warranty", "material", "origin"]);
     assert.deepEqual(audit.products.map(product => product.id), [second.id]);
   } finally {
     if (child && child.exitCode === null) { const stopped = once(child, "exit"); child.kill("SIGTERM"); await stopped; }

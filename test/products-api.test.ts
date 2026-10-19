@@ -131,6 +131,33 @@ test("Product management with isolated database and media", { timeout: 120000 },
       assert.deepEqual(publicProduct.gallery, reversed);
       assert.equal((await patch({ gallery: [gallery[0], gallery[0]] })).status, 400);
     });
+    await t.test("Save facet selections, preserve omitted fields and restore automatic inference", async () => {
+      const visible = { price: 125000, specification: "12V · 8W", published: true };
+      const details = { material: "Inox 304", color: "Đen mờ", origin: "Germany" };
+      for (const invalid of [
+        { materialGroups: ["wrong"] }, { colorGroups: ["Đen"] }, { originGroups: ["Germany"] },
+        { materialGroups: "steel" }, { colorGroups: ["black", "black"] }, { originGroups: [false] },
+      ]) assert.equal((await patch(invalid)).status, 400, JSON.stringify(invalid));
+      const saved = await patch({ ...visible, ...details, materialGroups: ["plastic"], colorGroups: ["white", "silver"], originGroups: ["malaysia"] });
+      assert.equal(saved.status, 200, JSON.stringify(saved.data)); revision = saved.data.product.revision;
+      assert.deepEqual(saved.data.product.materialGroups, ["plastic"]);
+      assert.deepEqual(saved.data.product.colorGroups, ["white", "silver"]);
+      assert.equal(saved.data.product.material, details.material);
+      const renamed = await patch({ ...visible, ...details, name: "Renamed with explicit facets" });
+      assert.equal(renamed.status, 200); revision = renamed.data.product.revision;
+      assert.deepEqual(renamed.data.product.originGroups, ["malaysia"]);
+      const publicProduct = (await guest.call(`/catalog/${draft.slug}`)).data;
+      assert.deepEqual(publicProduct.colorGroups, ["white", "silver"]);
+      const search = (query: string) => guest.call(`/catalog/search?q=${draft.code}&${query}`);
+      assert.equal((await search("colorGroup=white&originGroup=malaysia&materialGroup=plastic")).data.total, 1);
+      assert.equal((await search("colorGroup=black")).data.total, 0);
+      const empty = await patch({ ...visible, ...details, colorGroups: [] });
+      assert.equal(empty.status, 200); revision = empty.data.product.revision;
+      assert.equal((await search("colorGroup=black&colorGroup=white")).data.total, 0);
+      const automatic = await patch({ ...visible, ...details, materialGroups: null, colorGroups: null, originGroups: null });
+      assert.equal(automatic.status, 200); revision = automatic.data.product.revision;
+      assert.equal((await search("colorGroup=black&originGroup=germany&materialGroup=inox-304")).data.total, 1);
+    });
     await t.test("Authenticity labels default on, persist when hidden and remain visible in public catalog contracts", async () => {
       const visibleDraft = { price: 125000, specification: "12V · 8W", published: true };
       await sql.query(`UPDATE "${schema}".products SET data=data-'showAuthenticityLabel' WHERE id=$1`, [id]);

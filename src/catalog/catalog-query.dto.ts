@@ -1,6 +1,7 @@
 import { Transform, Type } from "class-transformer";
 import { ArrayMaxSize, IsArray, IsBoolean, IsIn, IsInt, IsOptional, IsString, Max, MaxLength, Min } from "class-validator";
 import { MATERIAL_GROUP_VALUES, type MaterialGroup } from "./material-groups";
+import { PRODUCT_FACETS } from "./product-filter-attributes";
 
 const list = Transform(({ value }) => value === undefined ? undefined : Array.isArray(value) ? value : [value]);
 const boolean = Transform(({ value }) => value === "true" ? true : value === "false" ? false : value);
@@ -14,6 +15,10 @@ export class CatalogQueryDto {
   @IsOptional() @list @IsArray() @ArrayMaxSize(30) @IsString({ each: true }) @MaxLength(100, { each: true }) color?: string[];
   @IsOptional() @list @IsArray() @ArrayMaxSize(30) @IsString({ each: true }) @MaxLength(100, { each: true }) size?: string[];
   @IsOptional() @list @IsArray() @ArrayMaxSize(30) @IsString({ each: true }) @MaxLength(100, { each: true }) origin?: string[];
+  @IsOptional() @list @IsArray() @ArrayMaxSize(PRODUCT_FACETS.color.options.length)
+  @IsIn(PRODUCT_FACETS.color.options.map(option => option.value), { each: true }) colorGroup?: string[];
+  @IsOptional() @list @IsArray() @ArrayMaxSize(PRODUCT_FACETS.origin.options.length)
+  @IsIn(PRODUCT_FACETS.origin.options.map(option => option.value), { each: true }) originGroup?: string[];
   @IsOptional() @IsString() @MaxLength(100) subcategory?: string;
   @IsOptional() @list @IsArray() @ArrayMaxSize(2) @IsIn(["in", "out"], { each: true }) stock?: string[];
   @IsOptional() @Type(() => Number) @IsInt() @Min(0) @Max(999999999999) min?: number;

@@ -34,6 +34,8 @@
     "test:categories": "npm run build && tsx --test test/categories-api.test.ts",
     "test:catalog": "npm run build && tsx --test test/catalog-query-api.test.ts",
     "test:materials": "npm run build && tsx --test test/material-groups.test.ts test/catalog-query-api.test.ts",
+    "catalog:sync-filters": "npm run build && node scripts/sync-product-filter-attributes.mjs",
+    "test:product-filters": "npm run build && node --import tsx --test test/material-groups.test.ts test/product-filter-attributes.test.ts test/catalog-query-api.test.ts test/products-api.test.ts test/product-filter-sync.test.mjs",
     "test:admin-resources": "npm run build && tsx --test test/admin-resources-api.test.ts",
     "test:mock-cleanup": "npm run build && node --test test/mock-cleanup.test.mjs",
     "test:fulco": "npm run build && node --test test/fulco-import.test.mjs",

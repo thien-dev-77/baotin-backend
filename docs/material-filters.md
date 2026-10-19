@@ -1,5 +1,9 @@
 # Grouped material filters
 
+Explicit selections for material, color and origin are now supported too; see
+`docs/product-filter-attributes.md`. When present, a product's manual selections
+take priority over the text classification described below.
+
 Catalog filters accept `materialGroup` alongside the existing exact `material`
 parameter. For example:
 

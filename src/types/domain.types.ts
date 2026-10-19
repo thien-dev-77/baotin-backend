@@ -6,6 +6,7 @@ export type Product = {
   id: string; slug: string; name: string; code: string; category: string; subcategory: string;
   image: string; gallery: string[]; brand: string; specification: string; material: string;
   color: string; size: string; origin: string; price: number; oldPrice?: number;
+  materialGroups?: string[] | null; colorGroups?: string[] | null; originGroups?: string[] | null;
   listPrice?: number; b2cDiscount?: number; b2bDiscount?: number;
   unit: string; stock: number; featured: boolean; customerPrice?: number;
   showAuthenticityLabel?: boolean;
