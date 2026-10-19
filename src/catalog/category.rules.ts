@@ -14,6 +14,17 @@ const legacyOrder = [
   "phu-kien-lap-dat",
 ];
 
+export function sentenceCaseCategoryName(name: string): string {
+  const lower = name.normalize("NFC").trim().replace(/\s+/g, " ").toLocaleLowerCase("vi");
+  return lower.charAt(0).toLocaleUpperCase("vi") + lower.slice(1);
+}
+
+export function categoryIdentityConflict(categories: Category[], candidate: Pick<Category, "slug" | "name" | "parentSlug">, previousSlug?: string): boolean {
+  const nameKey = (value: string) => value.normalize("NFC").trim().replace(/\s+/g, " ").toLocaleLowerCase("vi");
+  return categories.some(category => category.slug !== previousSlug && (category.slug === candidate.slug ||
+    ((category.parentSlug || "") === (candidate.parentSlug || "") && nameKey(category.name) === nameKey(candidate.name))));
+}
+
 export function categoryView(row: CategoryEntity): Category {
   const legacyIndex = legacyOrder.indexOf(row.slug);
   return {

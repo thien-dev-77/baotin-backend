@@ -20,7 +20,7 @@ import {
 } from "../database/entities";
 import { assertProductImageExists } from "../media/product-media";
 import { CategoryDto } from "./category.dto";
-import { categoryView, orderedCategories } from "./category.rules";
+import { categoryIdentityConflict, categoryView, orderedCategories } from "./category.rules";
 import { CategoryBulkDto } from "./category-bulk.dto";
 import { CategoryBulkService } from "./category-bulk.service";
 import { assertCategoryTree, categoryDescendants } from "./category-tree";
@@ -125,15 +125,9 @@ export class AdminCategoriesController {
         );
       if (slug && slug !== input.slug)
         throw new BadRequestException("Không đổi đường dẫn danh mục đã tạo.");
-      const nameKey = input.name.toLocaleLowerCase("vi");
       const existing = await repository.find();
-      const duplicate = existing.some(
-        (row) =>
-          row.slug !== slug &&
-          (row.slug === input.slug ||
-            row.data.name.normalize("NFC").trim().toLocaleLowerCase("vi") ===
-              nameKey),
-      );
+      const parentSlug = input.parentSlug ?? previous?.data.parentSlug ?? "";
+      const duplicate = categoryIdentityConflict(existing.map(categoryView), { ...input, parentSlug }, slug);
       if (duplicate)
         throw new ConflictException(
           "Tên hoặc đường dẫn danh mục đã được sử dụng.",
@@ -154,7 +148,6 @@ export class AdminCategoriesController {
           );
       }
       const { revision: _revision, ...data } = input;
-      const parentSlug = input.parentSlug ?? previous?.data.parentSlug ?? "";
       data.parentSlug = parentSlug;
       assertCategoryTree([...existing.filter(row => row.slug !== input.slug).map(categoryView), { ...data }]);
       const row = await repository.save(

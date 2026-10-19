@@ -73,11 +73,21 @@ export class AdminBrowseService {
       query.andWhere("r.data->>'category' IN (:...categorySlugs)", { categorySlugs: categoryDescendants(tree, input.category) });
     }
     if (input.subcategory) query.andWhere("r.data->>'subcategory' = :subcategory", { subcategory: input.subcategory });
+    if (input.brand) query.andWhere("LOWER(normalize(TRIM(r.data->>'brand'), NFC)) = LOWER(normalize(:brand, NFC))", { brand: input.brand });
     if (input.status && input.status !== "all") {
       if (!["published", "hidden"].includes(input.status)) throw new BadRequestException("Trạng thái sản phẩm không hợp lệ.");
       query.andWhere("r.published = :published", { published: input.status === "published" });
     }
     return query;
+  }
+  private async productBrands(): Promise<string[]> {
+    const rows = await this.db.source.getRepository(ProductEntity).createQueryBuilder("r")
+      .select("MIN(TRIM(r.data->>'brand'))", "brand")
+      .where("TRIM(COALESCE(r.data->>'brand', '')) <> ''")
+      .groupBy("LOWER(normalize(TRIM(r.data->>'brand'), NFC))")
+      .orderBy("LOWER(normalize(TRIM(r.data->>'brand'), NFC))", "ASC")
+      .getRawMany<{ brand: string }>();
+    return rows.map(row => row.brand);
   }
   private async productWindow(query: SelectQueryBuilder<ProductEntity>, input: AdminBrowseDto) {
     const list = query.clone().select("r.id", "id").addSelect("r.published", "published").addSelect("r.revision", "revision")
@@ -107,9 +117,9 @@ export class AdminBrowseService {
       const query = await this.productQuery(input, input.category ? await categoriesPromise : undefined);
       const pagePromise = this.productWindow(query, input).then(async ({ rows, pagination }) => ({ pagination,
         products: await this.ledger.stock(rows.map(row => ({ ...row.data, gallery: [], published: row.published, revision: row.revision })), input.branch) }));
-      const [{ products, pagination }, categories] = await Promise.all([pagePromise, categoriesPromise]);
+      const [{ products, pagination }, categories, brands] = await Promise.all([pagePromise, categoriesPromise, this.productBrands()]);
       result.products = products; result.categories = categories;
-      return this.redact(user, { ...result, pagination });
+      return this.redact(user, { ...result, pagination, brands });
     }
     if (["orders", "warehouse"].includes(input.resource)) {
       const query = this.db.source.getRepository(OrderEntity).createQueryBuilder("r").where("r.branch = :branch", { branch: input.branch }).orderBy("r.createdAt", "DESC").addOrderBy("r.id", "DESC");

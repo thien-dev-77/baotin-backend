@@ -138,6 +138,36 @@ test("Scoped admin resources and compact commands", { timeout: 120000 }, async t
       assert.ok(!queries.some(query => query.includes('"customers"')));
       assert.equal(queries.filter(query => query.includes('"categories"')).length, 1);
     });
+    await t.test("Brand filtering includes private SKUs, keeps global choices and scopes pagination and bulk selection", async () => {
+      const repository = db.source.getRepository(ProductEntity);
+      const sample = await repository.findOneByOrFail({ id: "LED-12V-8W" });
+      await repository.insert(Array.from({ length: 32 }, (_, index) => ({ id: `brand-qa-${index}`, slug: `brand-qa-${index}`, published: index % 2 === 0,
+        data: { ...sample.data, id: `brand-qa-${index}`, code: `BRAND-QA-${index}`, name: `Brand filter QA ${index} HAFELE`, brand: index < 25 ? index % 2 === 0 ? "HAFELE" : "hafele" : "Fulco", subcategory: "Nhóm thương hiệu" } })));
+      const filters = { q: "Brand filter QA", brand: " hafele ", pageSize: "10" };
+      const first = await admin.call(browsePath("products", filters));
+      assert.equal(first.status, 200, JSON.stringify(first.data));
+      assert.equal(first.data.pagination.total, 25); assert.equal(first.data.products.length, 10);
+      assert.ok(first.data.products.every((row: { brand: string }) => row.brand.toLowerCase() === "hafele"));
+      assert.ok(first.data.brands.includes("HAFELE") && first.data.brands.includes("Fulco"));
+      assert.equal(first.data.brands.filter((brand: string) => brand.toLowerCase() === "hafele").length, 1);
+      const second = await admin.call(browsePath("products", { ...filters, page: "2" }));
+      assert.equal(second.data.products.length, 10);
+      assert.ok(!second.data.products.some((row: { id: string }) => first.data.pagination.ids.includes(row.id)));
+      const last = await admin.call(browsePath("products", { ...filters, page: "999" }));
+      assert.equal(last.data.pagination.page, 3); assert.equal(last.data.products.length, 5);
+      const combined = await admin.call(browsePath("products", { ...filters, category: sample.data.category, subcategory: "Nhóm thương hiệu", status: "hidden" }));
+      assert.equal(combined.data.pagination.total, 12);
+      assert.equal((await admin.call(browsePath("products", { ...filters, brand: "Fulco" }))).data.pagination.total, 7);
+      for (const brand of ["Haf", "HAFELE' OR 1=1 --"]) {
+        const empty = await admin.call(browsePath("products", { ...filters, brand }));
+        assert.equal(empty.status, 200); assert.equal(empty.data.pagination.total, 0);
+        assert.ok(empty.data.brands.includes("HAFELE") && empty.data.brands.includes("Fulco"));
+      }
+      assert.equal((await admin.call(browsePath("products", { brand: "x".repeat(81) }))).status, 400);
+      const selection = await admin.call(`/admin/products/selection?${new URLSearchParams({ branch: "Quy Nhơn", q: filters.q, brand: "HAFELE" })}`);
+      assert.equal(selection.status, 200, JSON.stringify(selection.data)); assert.equal(selection.data.count, 25);
+      assert.ok(selection.data.products.every((row: { id: string }) => Number(row.id.replace("brand-qa-", "")) < 25));
+    });
     await t.test("All-time order search and targeted details include pending orders older than 90 days", async () => {
       const repository = db.source.getRepository(OrderEntity);
       const sample = (await repository.find())[0];
