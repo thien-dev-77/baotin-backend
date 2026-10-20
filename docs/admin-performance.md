@@ -1,5 +1,68 @@
 # Admin Resource Loading - 12 October 2026
 
+## Admin read optimization — 20 October 2026
+
+Deploy the backend before the frontend; this release adds read endpoints. No
+schema migration, seed, upload relocation or production data rewrite is needed.
+Legacy endpoints retain their previous response contracts.
+
+- Staff authentication joins the session and current user in one SQL query.
+  Session revocation/expiry, disabled accounts and current role/branch grants
+  remain live; authentication and financial values are not cached server-side.
+- `GET /api/admin/product-metadata?branch=...` returns categories and brands.
+  A database fingerprint detects changed category data/revisions and brand values
+  across processes/imports; unchanged metadata reuses the server projection.
+  The frontend privately caches this response separately from page results.
+- Product list clients send `metadata=false` to `/api/admin/browse`. Omission
+  preserves the legacy metadata response. Product pages and editor group reads
+  start independently of category dictionaries. Editor reads use the existing
+  access-scoped cache; explicit refresh/save invalidates subscribed reads.
+- `GET /api/admin/order-editor?branch=...&id=...` requires admin/boss/sales.
+  Omit `id` for creation. It returns branch customers, categories and only the
+  selected order's related records/SKUs, with long product content omitted.
+  The product picker requests published SKUs in pages of 10, debounces search,
+  and retains selected SKU records while changing pages. Quotes and commands
+  still validate live prices, stock, credit and revisions on the server.
+  A refreshed order revision blocks saving the old draft; reloading explicitly
+  uses the existing unsaved-change confirmation.
+- `GET /api/admin/ledger/page?branch=...&tab=stock|credit|entries&page=1&pageSize=10&q=...`
+  returns only the active tab with pagination. Allowed sizes: 10/25/50. Stock
+  projects ID/code/name/unit/stock and calculates on-hand/reserved/available for
+  that page. Customer finance is calculated for paged customers; receipt/order
+  reads project only finance fields. Warehouse access excludes credit and
+  filters history to stock entries. Adjustments retain balance/branch guards.
+- Reports issue three independent reads: customer finance, period-only order
+  fields, and all-time unpaid credit rows joined to posted receipts. Aging keeps
+  opening balances, old orders and unknown due dates. Maps replace repeated
+  customer/order/receipt scans. Detail dependencies and warehouse counts overlap;
+  count/page reads run in parallel and still clamp out-of-range pages.
+- CKEditor initializes within 200 px of the viewport, or on explicit activation.
+  Parent form state preserves unmounted editor values; activated editors stay
+  mounted across tab switches. Refresh errors preserve editable draft content.
+
+Read-only service measurements on 730 current products / 111 categories:
+
+| Read | Before | After |
+| --- | ---: | ---: |
+| Product page, 10 SKUs | 38.5 KiB | 7.7 KiB + separately cached 30.9 KiB metadata |
+| New order initial JSON | 2005.7 KiB | 32.5 KiB |
+| Ledger initial JSON | 1980.3 KiB / 730 SKUs | 1.7 KiB / 10 SKUs |
+| Report resource SQL reads, excluding auth | 7 | 3 |
+| Staff auth SQL reads | 2 | 1 |
+
+Measurements used an explicit READ ONLY transaction and rolled back; only
+aggregate counts/sizes were saved. One pinned connection serialized parallel
+queries, so these are payload/query comparisons, not production HTTP latency
+claims. The current measured branch had no orders. Disposable tests add history,
+reservations, partial/pending/voided receipts, opening debt, negative balances,
+and old credit orders to verify finance. Pool size and transaction locks remain
+unchanged. Current EXPLAIN results did not justify adding speculative indexes.
+
+Validation: `npm run test:admin-performance` in each repository; backend build,
+admin-resources/operations integration tests on disposable PostgreSQL; frontend
+build/typecheck/lint plus admin loading, filters, cache, editor content and SKU
+linking regressions. Legacy resource endpoints remain available for other screens.
+
 ## Paged Queries And Dashboard
 
 Deploy this API before the matching frontend. Legacy endpoints are retained.

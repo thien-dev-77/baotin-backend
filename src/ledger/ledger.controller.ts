@@ -22,6 +22,8 @@ import { LedgerEntity } from "../database/operations.entities";
 import { branches } from "../types/domain.types";
 import { LedgerService } from "./ledger.service";
 import { redactProductPricing } from "../catalog/product-pricing";
+import { LedgerQueryService } from "./ledger-query.service";
+import { LedgerPageDto } from "./ledger-page.dto";
 
 class AdjustmentDto {
   @IsIn(branches) branch!: (typeof branches)[number];
@@ -48,7 +50,11 @@ export class LedgerController {
     private readonly auth: AuthService,
     private readonly db: DatabaseService,
     private readonly ledger: LedgerService,
+    private readonly queries: LedgerQueryService,
   ) {}
+  @Get("page") async page(@Query() input: LedgerPageDto, @Req() request: AuthRequest) {
+    return this.queries.page((await this.auth.authenticate(request))!, input);
+  }
   @Get() async view(
     @Query("branch") branch: string,
     @Req() request: AuthRequest,

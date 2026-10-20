@@ -15,7 +15,7 @@ import { isWarehouseOrder } from "./rules/warehouse.rules";
 import { customerDebtSql, customerFinanceQuery, customerOverdueSql } from "./customer-finance.query";
 import type { ApiAdminState } from "../types/api.types";
 import type { Category } from "../types/domain.types";
-import type { AdminBrowseDto, AdminBranchDto } from "./admin-browse.dto";
+import type { AdminBrowseDto, AdminBranchDto, AdminOrderEditorDto } from "./admin-browse.dto";
 import { MAX_BULK_PRODUCTS } from "../catalog/product-bulk.dto";
 
 const accents = "àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ";
@@ -35,15 +35,18 @@ export function applyAdminSearch<T extends ObjectLiteral>(query: SelectQueryBuil
 
 @Injectable()
 export class AdminBrowseService {
+  private metadataCache?: { version: string; data: { categories: Category[]; brands: string[] } };
+  private metadataReads = new Map<string, Promise<{ categories: Category[]; brands: string[] }>>();
   constructor(private readonly db: DatabaseService, private readonly ledger: LedgerService) {}
   authorize(user: UserEntity, branch: string, financial = false) {
     if (user.role === "b2b" || !user.branches.includes(branch as never) || (financial && user.role === "warehouse")) throw new ForbiddenException("Không có quyền xem dữ liệu này.");
   }
   private async window<T extends ObjectLiteral>(query: SelectQueryBuilder<T>, input: AdminBrowseDto) {
-    const total = await query.clone().getCount();
+    const readPage = (page: number) => query.clone().offset((page - 1) * input.pageSize).limit(input.pageSize).getMany();
+    const [total, requestedRows] = await Promise.all([query.clone().getCount(), readPage(input.page)]);
     const totalPages = Math.max(1, Math.ceil(total / input.pageSize));
     const page = Math.min(input.page, totalPages);
-    const rows = await query.offset((page - 1) * input.pageSize).limit(input.pageSize).getMany();
+    const rows = page === input.page ? requestedRows : await readPage(page);
     return { rows, pagination: { resource: input.resource, total, page, pageSize: input.pageSize, totalPages, ids: rows.map(row => String(row.id)) } };
   }
   private dates<T extends ObjectLiteral>(query: SelectQueryBuilder<T>, input: AdminBrowseDto, field = "r.data->>'date'") {
@@ -89,6 +92,31 @@ export class AdminBrowseService {
       .getRawMany<{ brand: string }>();
     return rows.map(row => row.brand);
   }
+  async productMetadata(user: UserEntity, branch: string) {
+    this.authorize(user, branch);
+    return this.metadata();
+  }
+  private async metadata() {
+    // Check the actual metadata values on every read, including changes made by
+    // another API instance or an import. Cache neither permissions nor stock.
+    const categories = this.db.source.getRepository(CategoryEntity).createQueryBuilder("c")
+      .select("md5(COALESCE(string_agg(c.slug || c.revision::text || c.data::text, '|' ORDER BY c.slug), ''))");
+    const brands = this.db.source.getRepository(ProductEntity).createQueryBuilder("p")
+      .select("md5(COALESCE(string_agg(p.id || COALESCE(p.data->>'brand', ''), '|' ORDER BY p.id), ''))");
+    const [fingerprint] = await this.db.source.query(`SELECT (${categories.getQuery()}) AS categories, (${brands.getQuery()}) AS brands`);
+    const version = JSON.stringify(fingerprint);
+    if (this.metadataCache?.version === version) return this.metadataCache.data;
+    const existing = this.metadataReads.get(version);
+    if (existing) return existing;
+    const read = Promise.all([this.db.source.getRepository(CategoryEntity).find().then(orderedCategories), this.productBrands()])
+      .then(([categories, brands]) => {
+        const data = { categories, brands };
+        this.metadataCache = { version, data };
+        return data;
+      }).finally(() => { this.metadataReads.delete(version); });
+    this.metadataReads.set(version, read);
+    return read;
+  }
   private async productWindow(query: SelectQueryBuilder<ProductEntity>, input: AdminBrowseDto) {
     const list = query.clone().select("r.id", "id").addSelect("r.published", "published").addSelect("r.revision", "revision")
       .addSelect("r.data - :omitted::text[]", "data").setParameter("omitted", PRODUCT_LIST_OMITTED_FIELDS);
@@ -113,13 +141,13 @@ export class AdminBrowseService {
     if ((input.from && !validDate(input.from)) || (input.to && !validDate(input.to)) || (input.from && input.to && input.from > input.to)) throw new BadRequestException("Khoảng ngày không hợp lệ.");
     const result: Partial<ApiAdminState> = { today: businessDate() };
     if (input.resource === "products") {
-      const categoriesPromise = this.db.source.getRepository(CategoryEntity).find().then(orderedCategories);
-      const query = await this.productQuery(input, input.category ? await categoriesPromise : undefined);
+      const metadataPromise = input.metadata !== false || input.category ? this.metadata() : undefined;
+      const query = await this.productQuery(input, input.category ? (await metadataPromise)!.categories : undefined);
       const pagePromise = this.productWindow(query, input).then(async ({ rows, pagination }) => ({ pagination,
         products: await this.ledger.stock(rows.map(row => ({ ...row.data, gallery: [], published: row.published, revision: row.revision })), input.branch) }));
-      const [{ products, pagination }, categories, brands] = await Promise.all([pagePromise, categoriesPromise, this.productBrands()]);
-      result.products = products; result.categories = categories;
-      return this.redact(user, { ...result, pagination, brands });
+      const [{ products, pagination }, metadata] = await Promise.all([pagePromise, metadataPromise]);
+      result.products = products;
+      return this.redact(user, { ...result, pagination, ...(input.metadata !== false ? metadata : {}) });
     }
     if (["orders", "warehouse"].includes(input.resource)) {
       const query = this.db.source.getRepository(OrderEntity).createQueryBuilder("r").where("r.branch = :branch", { branch: input.branch }).orderBy("r.createdAt", "DESC").addOrderBy("r.id", "DESC");
@@ -133,18 +161,13 @@ export class AdminBrowseService {
       if (input.resource === "warehouse" || user.role === "warehouse") query.andWhere("r.data->>'status' IN (:...stages)", { stages: warehouseStages });
       if (input.status === "issues") query.andWhere("r.warehouse->'issue' IS NOT NULL AND COALESCE(r.warehouse->'issue'->>'resolvedAt', '') = ''");
       else if (input.status && input.status !== "all") query.andWhere("r.data->>'status' = :status", { status: input.status });
-      const { rows, pagination } = await this.window(query, input);
-      await this.orders(rows, result);
-      if (input.resource !== "warehouse") return this.redact(user, { ...result, pagination });
-      const counts = await this.db.source.getRepository(OrderEntity).createQueryBuilder("o")
-        .where("o.branch = :branch AND o.data->>'status' IN (:...stages)", { branch: input.branch, stages: warehouseStages })
-        .select("COUNT(*)", "total")
-        .addSelect("COUNT(*) FILTER (WHERE o.data->>'status' = 'Chờ soạn hàng')", "waiting")
-        .addSelect("COUNT(*) FILTER (WHERE o.data->>'status' = 'Đang soạn')", "picking")
-        .addSelect("COUNT(*) FILTER (WHERE o.data->>'status' = 'Sẵn sàng giao')", "ready")
-        .addSelect("COUNT(*) FILTER (WHERE o.warehouse->'issue' IS NOT NULL AND COALESCE(o.warehouse->'issue'->>'resolvedAt', '') = '')", "issues")
-        .getRawOne<Record<string, string>>();
-      return this.redact(user, { ...result, pagination, warehouseSummary: { total: Number(counts?.total || 0), waiting: Number(counts?.waiting || 0), picking: Number(counts?.picking || 0), ready: Number(counts?.ready || 0), issues: Number(counts?.issues || 0) } });
+      const summaryPromise = input.resource === "warehouse" ? this.warehouseSummary(input.branch) : undefined;
+      const pagePromise = this.window(query, input).then(async ({ rows, pagination }) => {
+        await this.orders(rows, result);
+        return pagination;
+      });
+      const [pagination, counts] = await Promise.all([pagePromise, summaryPromise]);
+      return this.redact(user, { ...result, pagination, ...(counts ? { warehouseSummary: { total: Number(counts.total || 0), waiting: Number(counts.waiting || 0), picking: Number(counts.picking || 0), ready: Number(counts.ready || 0), issues: Number(counts.issues || 0) } } : {}) });
     }
     if (input.resource === "customers") return this.customers(input);
     if (input.resource === "approvals") {
@@ -168,6 +191,16 @@ export class AdminBrowseService {
     const orderIds = rows.map(row => row.data.orderId);
     await this.orders(orderIds.length ? await this.db.source.getRepository(OrderEntity).find({ where: { id: In(orderIds), branch: input.branch } }) : [], result);
     return { ...result, pagination };
+  }
+  private async warehouseSummary(branch: string) {
+    return this.db.source.getRepository(OrderEntity).createQueryBuilder("o")
+        .where("o.branch = :branch AND o.data->>'status' IN (:...stages)", { branch, stages: warehouseStages })
+        .select("COUNT(*)", "total")
+        .addSelect("COUNT(*) FILTER (WHERE o.data->>'status' = 'Chờ soạn hàng')", "waiting")
+        .addSelect("COUNT(*) FILTER (WHERE o.data->>'status' = 'Đang soạn')", "picking")
+        .addSelect("COUNT(*) FILTER (WHERE o.data->>'status' = 'Sẵn sàng giao')", "ready")
+        .addSelect("COUNT(*) FILTER (WHERE o.warehouse->'issue' IS NOT NULL AND COALESCE(o.warehouse->'issue'->>'resolvedAt', '') = '')", "issues")
+        .getRawOne<Record<string, string>>();
   }
   private async customers(input: AdminBrowseDto) {
     const query = customerFinanceQuery(this.db, input.branch).orderBy("c.data->>'name'", "ASC").addOrderBy("c.id", "ASC");
@@ -202,17 +235,35 @@ export class AdminBrowseService {
     }
     return { ...result, pagination, summary: { debt: Number(summary?.debt || 0), overdue: Number(summary?.overdue || 0), overLimit: Number(summary?.overLimit || 0) }, directory: { items, assignees: staff.map(row => ({ id: row.id, name: row.name, disabled: row.disabled })), groups: [...new Set([...customerGroups, ...groups.map(row => row.group).filter(Boolean)])].sort() } };
   }
-  async orderDetail(user: UserEntity, id: string, input: AdminBranchDto) {
+  async orderEditor(user: UserEntity, input: AdminOrderEditorDto) {
+    this.authorize(user, input.branch);
+    if (!["admin", "boss", "sales"].includes(user.role)) throw new ForbiddenException("Không có quyền sửa đơn hàng.");
+    const [detail, customers, metadata] = await Promise.all([
+      input.id ? this.orderDetail(user, input.id, input, false) : emptyAdminState(),
+      this.db.source.getRepository(CustomerEntity).find({ where: { branch: input.branch }, order: { id: "ASC" } })
+        .then(rows => this.ledger.customers(rows.map(row => ({ ...row.data, revision: row.revision })))),
+      this.metadata(),
+    ]);
+    return { ...detail, today: businessDate(), customers, categories: metadata.categories };
+  }
+  async orderDetail(user: UserEntity, id: string, input: AdminBranchDto, includeCustomer = true) {
     this.authorize(user, input.branch);
     const row = await this.db.source.getRepository(OrderEntity).findOneBy({ id, branch: input.branch });
     if (!row || (user.role === "warehouse" && !isWarehouseOrder(row.data))) throw new NotFoundException("Không tìm thấy đơn tại chi nhánh này.");
     const result: Partial<ApiAdminState> = { today: businessDate() };
-    await this.orders([row], result);
     const ids = row.data.items.map(item => item.productId);
-    result.products = ids.length ? await this.ledger.stock((await this.db.source.getRepository(ProductEntity).find({ where: { id: In(ids) } })).map(product => ({ ...product.data, published: product.published, revision: product.revision })), input.branch) : [];
-    const customer = row.customerId ? await this.db.source.getRepository(CustomerEntity).findOneBy({ id: row.customerId, branch: input.branch }) : null;
-    result.customers = customer ? await this.ledger.customers([{ ...customer.data, revision: customer.revision }]) : [];
-    result.receipts = user.role !== "warehouse" ? (await this.db.source.getRepository(ReceiptEntity).createQueryBuilder("r").where("r.branch = :branch AND r.data->>'orderId' = :id", { branch: input.branch, id }).getMany()).map(receipt => receipt.data) : [];
+    const [products, customers, receipts] = await Promise.all([
+      ids.length ? this.db.source.getRepository(ProductEntity).createQueryBuilder("p")
+        .select("p.data - :omitted::text[]", "data").addSelect("p.published", "published").addSelect("p.revision", "revision")
+        .where("p.id IN (:...ids)", { ids, omitted: PRODUCT_LIST_OMITTED_FIELDS })
+        .getRawMany<Pick<ProductEntity, "data" | "published" | "revision">>()
+        .then(rows => this.ledger.stock(rows.map(product => ({ ...product.data, gallery: [], published: product.published, revision: product.revision })), input.branch)) : [],
+      includeCustomer && row.customerId && user.role !== "warehouse" ? this.db.source.getRepository(CustomerEntity).findOneBy({ id: row.customerId, branch: input.branch })
+        .then(customer => customer ? this.ledger.customers([{ ...customer.data, revision: customer.revision }]) : []) : [],
+      user.role !== "warehouse" ? this.db.source.getRepository(ReceiptEntity).createQueryBuilder("r").where("r.branch = :branch AND r.data->>'orderId' = :id", { branch: input.branch, id }).getMany().then(rows => rows.map(receipt => receipt.data)) : [],
+      this.orders([row], result),
+    ]);
+    Object.assign(result, { products, customers, receipts });
     return { ...emptyAdminState(), ...this.redact(user, result) };
   }
 }

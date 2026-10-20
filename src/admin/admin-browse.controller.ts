@@ -1,7 +1,7 @@
 import { Controller, Get, Param, Query, Req } from "@nestjs/common";
 import { AuthService, type AuthRequest } from "../auth/auth.service";
 import { AdminBrowseService } from "./admin-browse.service";
-import { AdminBrowseDto, AdminBranchDto, AdminDashboardDto } from "./admin-browse.dto";
+import { AdminBrowseDto, AdminBranchDto, AdminDashboardDto, AdminOrderEditorDto } from "./admin-browse.dto";
 import { AdminDashboardService } from "./admin-dashboard.service";
 
 @Controller("admin")
@@ -12,6 +12,12 @@ export class AdminBrowseController {
   }
   @Get("browse") async browse(@Query() input: AdminBrowseDto, @Req() request: AuthRequest) {
     return this.service.browse((await this.auth.authenticate(request))!, input);
+  }
+  @Get("product-metadata") async metadata(@Query() input: AdminBranchDto, @Req() request: AuthRequest) {
+    return this.service.productMetadata((await this.auth.authenticate(request))!, input.branch);
+  }
+  @Get("order-editor") async editor(@Query() input: AdminOrderEditorDto, @Req() request: AuthRequest) {
+    return this.service.orderEditor((await this.auth.authenticate(request))!, input);
   }
   @Get("orders/:id") async order(@Param("id") id: string, @Query() input: AdminBranchDto, @Req() request: AuthRequest) {
     return this.service.orderDetail((await this.auth.authenticate(request))!, id, input);

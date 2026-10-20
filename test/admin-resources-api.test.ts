@@ -133,10 +133,10 @@ test("Scoped admin resources and compact commands", { timeout: 120000 }, async t
       assert.equal((await admin.call(browsePath("products", { q: "BROWSE-54", status: "published" }))).data.pagination.total, 1);
       const browse = new AdminBrowseService(db, new LedgerService(db));
       queries.length = 0;
-      await browse.browse(user, { resource: "products", branch: "Quy Nhơn", page: 1, pageSize: 10 });
+      await browse.browse(user, { resource: "products", branch: "Quy Nhơn", metadata: false, page: 1, pageSize: 10 });
       assert.ok(queries.some(query => /FROM .*products.*LIMIT 10/.test(query)), queries.join("\n"));
       assert.ok(!queries.some(query => query.includes('"customers"')));
-      assert.equal(queries.filter(query => query.includes('"categories"')).length, 1);
+      assert.equal(queries.filter(query => query.includes('"categories"')).length, 0);
     });
     await t.test("Brand filtering includes private SKUs, keeps global choices and scopes pagination and bulk selection", async () => {
       const repository = db.source.getRepository(ProductEntity);

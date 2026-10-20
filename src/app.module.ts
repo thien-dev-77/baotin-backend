@@ -23,6 +23,7 @@ import { ContactController } from "./contact/contact.controller";
 import { PricePolicyService } from "./catalog/price-policy.service";
 import { PricePolicyController } from "./catalog/price-policy.controller";
 import { LedgerService } from "./ledger/ledger.service";
+import { LedgerQueryService } from "./ledger/ledger-query.service";
 import { LedgerController } from "./ledger/ledger.controller";
 import { PasswordRecoveryService } from "./auth/password-recovery.service";
 import { UserManagementController } from "./auth/user-management.controller";
@@ -53,6 +54,6 @@ import { CategoryBulkService } from "./catalog/category-bulk.service";
     return { secret };
   } }), ThrottlerModule.forRoot([{ ttl: 60000, limit: 240 }])],
   controllers: [AuthController, CatalogController, CategoriesController, AdminCategoriesController, OrdersController, AdminController, AdminBrowseController, AccountController, CustomersController, MediaController, HealthController, ContactController, PricePolicyController, LedgerController, UserManagementController, KiotController, AdminProductsController, NotificationsController, CustomerActionsController, PublicContentController, AdminContentController, ReviewsController, AdminReviewsController, DocumentsController, ReportsController],
-  providers: [DatabaseService, SeedService, AuthService, CatalogQueryService, ProductBulkService, ProductVariantCopyService, ProductVariantDetachService, ProductVariantAttachService, CategoryBulkService, OrdersService, AdminService, AdminBrowseService, AdminDashboardService, PricePolicyService, LedgerService, PasswordRecoveryService, KiotClient, KiotService, KiotReconciliationService, NotificationsService, { provide: APP_GUARD, useClass: ClientThrottlerGuard }]
+  providers: [DatabaseService, SeedService, AuthService, CatalogQueryService, ProductBulkService, ProductVariantCopyService, ProductVariantDetachService, ProductVariantAttachService, CategoryBulkService, OrdersService, AdminService, AdminBrowseService, AdminDashboardService, PricePolicyService, LedgerService, LedgerQueryService, PasswordRecoveryService, KiotClient, KiotService, KiotReconciliationService, NotificationsService, { provide: APP_GUARD, useClass: ClientThrottlerGuard }]
 })
 export class AppModule {}

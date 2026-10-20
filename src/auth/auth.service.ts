@@ -29,8 +29,9 @@ export class AuthService {
     if (!token) { if (required) throw new UnauthorizedException("Vui lòng đăng nhập."); return; }
     try {
       const claims = await this.jwt.verifyAsync<{ sub: string; sid: string }>(token, { algorithms: ["HS256"], issuer: "baotin-api", audience: "baotin-web" });
-      const session = await this.db.source.getRepository(SessionEntity).findOneBy({ id: claims.sid, userId: claims.sub });
-      const user = session && session.expiresAt > new Date() ? await this.db.source.getRepository(UserEntity).findOneBy({ id: claims.sub }) : null;
+      const user = await this.db.source.getRepository(UserEntity).createQueryBuilder("u")
+        .innerJoin(SessionEntity, "s", "s.userId = u.id AND s.id = :sid AND s.expiresAt > :now", { sid: claims.sid, now: new Date() })
+        .where("u.id = :id", { id: claims.sub }).getOne();
       if (!user || user.disabled) throw new Error("Invalid session");
       if (user.customerId) {
         const customer = await this.db.source.getRepository(CustomerEntity).findOneBy({ id: user.customerId });

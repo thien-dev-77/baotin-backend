@@ -21,6 +21,7 @@ import { NotificationsService } from "../notifications/notifications.service";
 import { branches } from "../types/domain.types";
 import { businessDate } from "../orders/orders.service";
 import { agingBucket } from "./report.rules";
+import { customerDebtSql, customerFinanceQuery, customerOverdueSql } from "../admin/customer-finance.query";
 
 class ReminderDto {
   @IsIn(branches) branch!: string;
@@ -53,117 +54,63 @@ export class ReportsController {
     const days = Math.max(1, Math.min(365, Number.parseInt(raw, 10) || 30));
     const start = new Date(`${date}T00:00:00Z`);
     start.setUTCDate(start.getUTCDate() - days + 1);
-    const customers = await this.ledger.customers(
-      (
-        await this.db.source
-          .getRepository(CustomerEntity)
-          .find({ where: { branch } })
-      ).map((row) => row.data),
-    );
-    const orders = await this.db.source
-      .getRepository(OrderEntity)
-      .find({ where: { branch } });
-    const receipts = (
-      await this.db.source
-        .getRepository(ReceiptEntity)
-        .find({ where: { branch } })
-    ).filter((row) => row.data.status === "Đã đối chiếu");
-    const entries = await this.db.source
-      .getRepository(LedgerEntity)
-      .find({ where: { branch, kind: "credit" } });
-    const period = orders.filter(
-      (row) =>
-        row.data.date >= start.toISOString().slice(0, 10) &&
-        row.data.date <= date,
-    );
-    const b2b = period.filter((row) => row.customerId);
-    const confirmed = period
-      .map((row) => {
-        const event = row.warehouse.history.find(
-          (event) => event.label === "Chờ soạn hàng",
-        );
-        const created = row.checkout?.date || row.createdAt.toISOString();
-        return event
-          ? (Date.parse(event.at) - Date.parse(created)) / 60000
-          : -1;
-      })
-      .filter((minutes) => Number.isFinite(minutes) && minutes >= 0);
-    const aging = customers.map((customer) => {
-      const amounts = {
-        current: 0,
-        days30: 0,
-        days60: 0,
-        days90: 0,
-        older: 0,
-        unknown: 0,
-      };
+    const paid = this.db.source.getRepository(ReceiptEntity).createQueryBuilder("r")
+      .select("r.data->>'orderId'", "orderId").addSelect("SUM((r.data->>'amount')::numeric)", "amount")
+      .where("r.branch = :branch AND r.data->>'status' = :posted", { branch, posted: "Đã đối chiếu" }).groupBy("r.data->>'orderId'");
+    const [rawCustomers, period, unpaidOrders] = await Promise.all([
+      customerFinanceQuery(this.db, branch).select("c.id", "id").addSelect("c.data->>'name'", "name").addSelect("c.data->>'status'", "status")
+        .addSelect(customerDebtSql, "debt").addSelect(customerOverdueSql, "overdue")
+        .getRawMany<{ id: string; name: string; status: string; debt: string; overdue: string }>(),
+      this.db.source.getRepository(OrderEntity).createQueryBuilder("o")
+        .select("o.id", "id").addSelect("o.customerId", "customerId").addSelect("o.createdAt", "createdAt")
+        .addSelect("o.checkout->>'date'", "checkoutDate").addSelect("o.data->>'source'", "source")
+        .addSelect("o.data->>'status'", "status").addSelect("o.data->>'cancelReason'", "cancelReason")
+        .addSelect(`(SELECT event->>'at' FROM jsonb_array_elements(o.warehouse->'history') WITH ORDINALITY AS history(event, position)
+          WHERE event->>'label' = 'Chờ soạn hàng' ORDER BY position LIMIT 1)`, "confirmedAt")
+        .addSelect("jsonb_typeof(o.warehouse->'issue') = 'object' AND COALESCE(o.warehouse->'issue'->>'resolvedAt', '') = ''", "shortage")
+        .where("o.branch = :branch AND o.data->>'date' BETWEEN :since AND :date", { branch, since: start.toISOString().slice(0, 10), date })
+        .getRawMany<{ id: string; customerId: string | null; createdAt: Date; checkoutDate: string | null; source: string; status: string; cancelReason: string; confirmedAt: string | null; shortage: boolean }>(),
+      this.db.source.getRepository(OrderEntity).createQueryBuilder("o")
+        .innerJoin(LedgerEntity, "entry", "entry.reference = concat('order:', o.id, ':credit') AND entry.kind = :ledgerKind", { ledgerKind: "credit" })
+        .leftJoin(`(${paid.getQuery()})`, "paid", 'paid."orderId" = o.id').setParameters(paid.getParameters())
+        .select("o.customerId", "customerId").addSelect("o.dueDate", "dueDate")
+        .addSelect("entry.delta", "posted").addSelect("COALESCE(paid.amount, 0)", "paid")
+        .where("o.branch = :branch", { branch }).orderBy("o.dueDate", "ASC", "NULLS LAST").addOrderBy("o.id", "ASC")
+        .getRawMany<{ customerId: string; dueDate: string | null; posted: string; paid: string }>(),
+    ]);
+    // The period summary is bounded by dates. Aging deliberately keeps credit
+    // from all time, including opening debt and credits outside that period.
+    const customers = rawCustomers.map(row => ({ ...row, debt: Number(row.debt), overdue: Number(row.overdue) }));
+    const b2b = period.filter(row => row.customerId);
+    const selfOrders = b2b.filter(row => /^Website/.test(row.source)).length;
+    const confirmed = period.map(row => row.confirmedAt ? (Date.parse(row.confirmedAt) - Date.parse(row.checkoutDate || new Date(row.createdAt).toISOString())) / 60000 : -1)
+      .filter(minutes => Number.isFinite(minutes) && minutes >= 0);
+    const byCustomer = new Map<string, typeof unpaidOrders>();
+    for (const row of unpaidOrders) {
+      const rows = byCustomer.get(row.customerId) || [];
+      rows.push(row); byCustomer.set(row.customerId, rows);
+    }
+    const aging = customers.map(customer => {
+      const amounts = { current: 0, days30: 0, days60: 0, days90: 0, older: 0, unknown: 0 };
       let remaining = Math.max(0, customer.debt);
-      const unpaidOrders = orders
-        .filter(
-          (row) =>
-            row.customerId === customer.id &&
-            entries.some(
-              (entry) => entry.reference === `order:${row.id}:credit`,
-            ),
-        )
-        .sort((a, b) =>
-          (a.dueDate || "9999").localeCompare(b.dueDate || "9999"),
-        );
-      for (const row of unpaidOrders) {
-        const paid = receipts
-          .filter((receipt) => receipt.data.orderId === row.id)
-          .reduce((sum, receipt) => sum + receipt.data.amount, 0);
-        const posted = entries.find(
-          (entry) => entry.reference === `order:${row.id}:credit`,
-        )!.delta;
-        const unpaid = Math.min(remaining, Math.max(0, posted - paid));
+      for (const row of byCustomer.get(customer.id) || []) {
+        const unpaid = Math.min(remaining, Math.max(0, Number(row.posted) - Number(row.paid)));
         amounts[agingBucket(row.dueDate, date)] += unpaid;
         remaining -= unpaid;
       }
       amounts.unknown += remaining;
-      return {
-        id: customer.id,
-        name: customer.name,
-        debt: customer.debt,
-        overdue: customer.overdue,
-        ...amounts,
-      };
+      return { id: customer.id, name: customer.name, debt: customer.debt, overdue: customer.overdue, ...amounts };
     });
     return {
-      date,
-      days,
-      customers: customers.length,
-      activeCustomers: customers.filter(
-        (row) => row.status === "Đang hoạt động",
-      ).length,
-      orderingCustomers: new Set(b2b.map((row) => row.customerId)).size,
-      orders: period.length,
-      b2bOrders: b2b.length,
-      selfOrders: b2b.filter((row) => /^Website/.test(row.data.source)).length,
-      selfOrderRate: b2b.length
-        ? Math.round(
-            (100 *
-              b2b.filter((row) => /^Website/.test(row.data.source)).length) /
-              b2b.length,
-          )
-        : 0,
-      confirmationMinutes: confirmed.length
-        ? Math.round(
-            confirmed.reduce((sum, value) => sum + value, 0) / confirmed.length,
-          )
-        : null,
-      cancelledOrders: period
-        .filter((row) => row.data.status === "Đã hủy")
-        .map((row) => ({
-          id: row.id,
-          reason: row.data.cancelReason || "Chưa ghi lý do",
-        })),
-      shortages: period.filter(
-        (row) => row.warehouse.issue && !row.warehouse.issue.resolvedAt,
-      ).length,
-      aging,
+      date, days, customers: customers.length, activeCustomers: customers.filter(row => row.status === "Đang hoạt động").length,
+      orderingCustomers: new Set(b2b.map(row => row.customerId)).size, orders: period.length, b2bOrders: b2b.length,
+      selfOrders, selfOrderRate: b2b.length ? Math.round(100 * selfOrders / b2b.length) : 0,
+      confirmationMinutes: confirmed.length ? Math.round(confirmed.reduce((sum, value) => sum + value, 0) / confirmed.length) : null,
+      cancelledOrders: period.filter(row => row.status === "Đã hủy").map(row => ({ id: row.id, reason: row.cancelReason || "Chưa ghi lý do" })),
+      shortages: period.filter(row => row.shortage).length, aging,
     };
   }
+
   @Post("remind") async remind(
     @Req() request: AuthRequest,
     @Body() input: ReminderDto,

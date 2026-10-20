@@ -1,5 +1,5 @@
 import { ConflictException, Injectable } from "@nestjs/common";
-import { In, Raw, type EntityManager } from "typeorm";
+import { In, type EntityManager } from "typeorm";
 import { DatabaseService } from "../database/database.service";
 import {
   CustomerEntity,
@@ -101,17 +101,21 @@ export class LedgerService {
     const customerIds = customers.map(customer => customer.id);
     const [balances, orders, entries] = await Promise.all([
       manager.getRepository(CreditEntity).find({ where: { customerId: In(customerIds) } }),
-      manager.getRepository(OrderEntity).find({ select: { id: true, customerId: true, data: true, dueDate: true }, where: { customerId: In(customerIds) } }),
+      manager.getRepository(OrderEntity).createQueryBuilder("o")
+        .select("o.id", "id").addSelect("o.customerId", "customerId").addSelect("o.dueDate", "dueDate")
+        .addSelect("jsonb_build_object('total', o.data->'total', 'credit', o.data->'credit', 'status', o.data->'status')", "data")
+        .where("o.customerId IN (:...customerIds)", { customerIds })
+        .getRawMany<Pick<OrderEntity, "id" | "customerId" | "dueDate" | "data">>(),
       manager.getRepository(LedgerEntity).find({ select: { reference: true }, where: { kind: "credit", resourceId: In(customerIds) } }),
     ]);
-    const receipts = orders.length ? await manager.getRepository(ReceiptEntity).find({
-      select: { data: true },
-      where: { data: Raw(alias => `${alias} ->> 'status' = :posted AND ${alias} ->> 'orderId' IN (:...orderIds)`, { posted: "Đã đối chiếu", orderIds: orders.map(order => order.id) }) },
-    }) : [];
+    const receipts = orders.length ? await manager.getRepository(ReceiptEntity).createQueryBuilder("r")
+      .select("r.data->>'orderId'", "orderId").addSelect("(r.data->>'amount')::bigint", "amount")
+      .where("r.data->>'status' = :posted AND r.data->>'orderId' IN (:...orderIds)", { posted: "Đã đối chiếu", orderIds: orders.map(order => order.id) })
+      .getRawMany<{ orderId: string; amount: string }>() : [];
     const balanceByCustomer = new Map(balances.map(row => [row.customerId, row]));
     const postedReferences = new Set(entries.map(row => row.reference));
     const paidByOrder = new Map<string, number>();
-    for (const receipt of receipts) paidByOrder.set(receipt.data.orderId, (paidByOrder.get(receipt.data.orderId) || 0) + receipt.data.amount);
+    for (const receipt of receipts) paidByOrder.set(receipt.orderId, (paidByOrder.get(receipt.orderId) || 0) + Number(receipt.amount));
     const reservedByCustomer = new Map<string, number>();
     const overdueByCustomer = new Map<string, number>();
     const date = today();
