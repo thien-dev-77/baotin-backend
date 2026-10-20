@@ -17,13 +17,15 @@ import { ProductVariantDetachDto } from "./product-variant-detach.dto";
 import { ProductVariantDetachService } from "./product-variant-detach.service";
 import { ProductVariantAttachDto } from "./product-variant-attach.dto";
 import { ProductVariantAttachService } from "./product-variant-attach.service";
+import { ProductEditorQueryDto } from "./product-editor.dto";
+import { LedgerService } from "../ledger/ledger.service";
 import { assertPublishable } from "./product.rules";
 import { resolveProductPricing } from "./product-pricing";
 import { validateVariantGroup, validateVariantGroupConfiguration, attributeKey, variantDimension } from "./product-variants";
 
 @Controller("admin/products")
 export class AdminProductsController {
-  constructor(private readonly auth: AuthService, private readonly db: DatabaseService, private readonly bulk: ProductBulkService, private readonly browse: AdminBrowseService, private readonly variantCopy: ProductVariantCopyService, private readonly variantDetach: ProductVariantDetachService, private readonly variantAttach: ProductVariantAttachService) {}
+  constructor(private readonly auth: AuthService, private readonly db: DatabaseService, private readonly bulk: ProductBulkService, private readonly browse: AdminBrowseService, private readonly variantCopy: ProductVariantCopyService, private readonly variantDetach: ProductVariantDetachService, private readonly variantAttach: ProductVariantAttachService, private readonly ledger: LedgerService) {}
 
   @Get("selection") async selectProducts(@Query() input: ProductSelectionDto, @Req() request: AuthRequest) {
     const user = (await this.auth.authenticate(request))!;
@@ -56,6 +58,19 @@ export class AdminProductsController {
   @Get(":id/variants") async variantGroup(@Param("id") id: string, @Req() request: AuthRequest) {
     const user = (await this.auth.authenticate(request))!;
     if (!["admin", "boss", "sales"].includes(user.role)) throw new ForbiddenException();
+    const rows = await this.variantRows(id);
+    return { products: rows.map(row => ({ ...row.data, published: row.published, revision: row.revision })) };
+  }
+
+  @Get(":id/editor") async editor(@Param("id") id: string, @Query() input: ProductEditorQueryDto, @Req() request: AuthRequest) {
+    const user = (await this.auth.authenticate(request))!;
+    if (!["admin", "boss", "sales"].includes(user.role) || !user.branches.includes(input.branch)) throw new ForbiddenException();
+    const rows = await this.variantRows(id);
+    const products = rows.map(row => ({ ...row.data, published: row.published, revision: row.revision }));
+    return { products: await this.ledger.stock(products, input.branch) };
+  }
+
+  private async variantRows(id: string) {
     const repository = this.db.source.getRepository(ProductEntity);
     const selected = await repository.findOneBy({ id });
     if (!selected) throw new NotFoundException("Không tìm thấy sản phẩm.");
@@ -64,7 +79,7 @@ export class AdminProductsController {
       .where("p.id = :groupId OR p.data->>'variantGroupId' = :groupId", { groupId })
       .orderBy("p.createdAt", "ASC").addOrderBy("p.id", "ASC").getMany();
     if (!rows.some(row => row.id === groupId)) throw new NotFoundException("Không tìm thấy sản phẩm gốc của nhóm.");
-    return { products: rows.map(row => ({ ...row.data, published: row.published, revision: row.revision })) };
+    return rows;
   }
 
   @Post(":id/attach-variant") async attachVariant(@Param("id") id: string, @Body() input: ProductVariantAttachDto, @Req() request: AuthRequest) {

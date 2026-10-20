@@ -13,6 +13,7 @@ Warehouse, accountant, B2B and anonymous users cannot write products.
 | POST | `/admin/products` | Create a product; returns `{ id, product }`, status 201 |
 | PATCH | `/admin/products/:id` | Replace editable fields; current `revision` required; returns `{ id, product }` |
 | GET | `/admin/products/:id/variants` | Fresh group snapshot with every SKU's current revision, including private SKUs; accepts any member ID |
+| GET | `/admin/products/:id/editor?branch=...` | The selected product's group, including private SKUs, with available stock for an authorized branch |
 | PATCH | `/admin/products/:id/variants` | Configure all attributes of a group; `id` is the root SKU |
 | POST | `/admin/products/:id/copy-to-variants` | Copy selected saved content to chosen sibling SKUs atomically |
 | POST | `/admin/products/:id/detach-variant` | Detach one SKU without deleting the product; reanchor remaining SKUs when necessary |
@@ -30,6 +31,20 @@ child SKU, send that UUID as `variantGroupId` and the same ordered attribute
 names with different values. Each SKU still has its own code, slug, price,
 gallery, stock, publication state, Kiot mapping and order identity. Product
 groups live in JSONB; no TypeORM migration is required.
+
+The editor endpoint requires admin/boss/sales and a granted branch. It returns
+full editable content and revisions only for the selected SKU and its group,
+not the entire catalog. New standalone products need only category resources;
+new variants load the chosen template's group. Stock calculations are limited
+to these SKUs. The original variants endpoint remains available for fresh
+membership/revision snapshots. Deploy this endpoint before the new frontend.
+
+Website quotes/checkouts now query only the requested published SKU IDs before
+applying branch inventory/reservations and customer pricing. Missing/private
+products, duplicate rows, insufficient stock, coupons, total-change checks and
+checkout idempotency keep their existing behavior. The optimization does not
+cache stock or customer prices. Run `npm run test:product-optimizations` for
+bounded-query and authorization checks in disposable local PostgreSQL.
 
 Optional `variantLabel` sets a display label for an individual SKU (maximum
 100 characters, trimmed plain text). Empty labels display the SKU's `code`.

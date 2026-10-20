@@ -1,7 +1,8 @@
 import { Module } from "@nestjs/common";
 import { APP_GUARD } from "@nestjs/core";
 import { JwtModule } from "@nestjs/jwt";
-import { ThrottlerGuard, ThrottlerModule } from "@nestjs/throttler";
+import { ThrottlerModule } from "@nestjs/throttler";
+import { ClientThrottlerGuard } from "./auth/client-throttler.guard";
 import { AuthController } from "./auth/auth.controller";
 import { AuthService } from "./auth/auth.service";
 import { DatabaseService } from "./database/database.service";
@@ -52,6 +53,6 @@ import { CategoryBulkService } from "./catalog/category-bulk.service";
     return { secret };
   } }), ThrottlerModule.forRoot([{ ttl: 60000, limit: 240 }])],
   controllers: [AuthController, CatalogController, CategoriesController, AdminCategoriesController, OrdersController, AdminController, AdminBrowseController, AccountController, CustomersController, MediaController, HealthController, ContactController, PricePolicyController, LedgerController, UserManagementController, KiotController, AdminProductsController, NotificationsController, CustomerActionsController, PublicContentController, AdminContentController, ReviewsController, AdminReviewsController, DocumentsController, ReportsController],
-  providers: [DatabaseService, SeedService, AuthService, CatalogQueryService, ProductBulkService, ProductVariantCopyService, ProductVariantDetachService, ProductVariantAttachService, CategoryBulkService, OrdersService, AdminService, AdminBrowseService, AdminDashboardService, PricePolicyService, LedgerService, PasswordRecoveryService, KiotClient, KiotService, KiotReconciliationService, NotificationsService, { provide: APP_GUARD, useClass: ThrottlerGuard }]
+  providers: [DatabaseService, SeedService, AuthService, CatalogQueryService, ProductBulkService, ProductVariantCopyService, ProductVariantDetachService, ProductVariantAttachService, CategoryBulkService, OrdersService, AdminService, AdminBrowseService, AdminDashboardService, PricePolicyService, LedgerService, PasswordRecoveryService, KiotClient, KiotService, KiotReconciliationService, NotificationsService, { provide: APP_GUARD, useClass: ClientThrottlerGuard }]
 })
 export class AppModule {}

@@ -43,6 +43,7 @@
     "test:variant-copy": "npm run build && node --test test/product-variant-copy.test.mjs",
     "test:variant-groups": "npm run build && node --test test/product-variant-groups.test.mjs",
     "test:variant-attach": "npm run build && node --test test/product-variant-attach.test.mjs",
+    "test:product-optimizations": "npm run build && node --test test/proxy-client-ip.test.mjs test/product-editor-quote-api.test.mjs",
     "test:media-storage": "npm run build && node --test test/product-media-storage.test.mjs",
     "test:api": "tsx --test test/api.test.ts",
     "db:local": "tsx scripts/local-postgres.ts",

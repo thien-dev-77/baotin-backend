@@ -1,6 +1,7 @@
 import { BadRequestException, ConflictException, ForbiddenException, Injectable } from "@nestjs/common";
 import { createHash, randomUUID } from "node:crypto";
 import type { EntityManager } from "typeorm";
+import { In } from "typeorm";
 import { DatabaseService } from "../database/database.service";
 import { CustomerEntity, OrderEntity, ProductEntity, UserEntity } from "../database/entities";
 import type { CheckoutDto, QuoteDto } from "./orders.dto";
@@ -34,7 +35,8 @@ export class OrdersService {
     const customer = user?.customerId ? await manager.getRepository(CustomerEntity).findOneBy({ id: user.customerId }) : null;
     if (user?.role === "b2b" && (!customer || customer.data.status !== "Đang hoạt động")) throw new ForbiddenException("Tài khoản B2B chưa được kích hoạt.");
     if (!customer && ["Sale giao", "Chành xe"].includes(input.delivery)) throw new BadRequestException("Khách lẻ chọn giao nội thành hoặc nhận tại cửa hàng.");
-    const rows = await manager.getRepository(ProductEntity).find({ where: { published: true } });
+    const productIds = input.items.map(item => item.productId);
+    const rows = await manager.getRepository(ProductEntity).find({ where: { id: In(productIds), published: true } });
     const products = await this.pricing.personalize(await this.ledger.stock(rows.map(row => row.data), customer?.branch || "Quy Nhơn", manager), customer?.data, manager);
     const items = input.items.map((item) => {
       const product = products.find(row => row.id === item.productId);
