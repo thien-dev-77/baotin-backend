@@ -16,6 +16,7 @@ Warehouse, accountant, B2B and anonymous users cannot write products.
 | PATCH | `/admin/products/:id/variants` | Configure all attributes of a group; `id` is the root SKU |
 | POST | `/admin/products/:id/copy-to-variants` | Copy selected saved content to chosen sibling SKUs atomically |
 | POST | `/admin/products/:id/detach-variant` | Detach one SKU without deleting the product; reanchor remaining SKUs when necessary |
+| POST | `/admin/products/:id/attach-variant` | Link an existing standalone/isolated SKU into the current product's group |
 | POST | `/media/product-images` | Multipart `images`, 1-10 files; returns `{ urls: string[] }` |
 
 Product fields: `name`, `code`, `slug`, `category`, `subcategory`, `brand`,
@@ -83,6 +84,25 @@ old/new group IDs and changed revisions. Product edits and content copying use
 the same anchor-first lock order so concurrent writes cannot restore old links.
 The frontend mutation proxy invalidates all public catalog/detail caches.
 No database migration is needed. Deploy the backend before the frontend action.
+
+Attaching accepts `{ groupId, products: [{ id, revision }], targetId,
+targetRevision, attributes: [{ name, value }] }`. The URL can identify any current
+member, including a standalone product. Supply a complete fresh group snapshot
+and the selected existing SKU's revision. The anchor is initialized automatically
+when the current product has no group. The target must be standalone or an
+isolated self-root, with the same brand, category and unit. Moving a member or
+anchor of another populated group returns 400; detach it first. The supplied
+attributes must match the root's ordered schema (up to six); empty-schema groups
+accept `[]` and use SKU selection. New duplicate combinations return 409 with
+the conflicting SKU codes and values. A resulting group can contain up to 500
+SKUs. Missing records return 404 and stale revisions/membership return 409.
+Only membership, variant attributes and derived size/color change. Product
+identity, content, pricing, photos, visibility, stock, filter overrides and
+operational references are preserved. Anchor/member locks, validation, saves
+and the `product-variant-attach` audit are one transaction. No schema migration
+is needed; deploy this API before the frontend action. Run
+`npm run test:variant-attach` for isolated PostgreSQL/API checks, including audit
+failure rollback, private visibility, permissions and stale snapshots.
 
 Content copying accepts `{ revision, fields, products: [{ id, revision }] }`.
 The URL identifies any saved source SKU, including a child; recipients must

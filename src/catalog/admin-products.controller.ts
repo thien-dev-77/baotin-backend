@@ -15,13 +15,15 @@ import { ProductVariantCopyDto } from "./product-variant-copy.dto";
 import { ProductVariantCopyService } from "./product-variant-copy.service";
 import { ProductVariantDetachDto } from "./product-variant-detach.dto";
 import { ProductVariantDetachService } from "./product-variant-detach.service";
+import { ProductVariantAttachDto } from "./product-variant-attach.dto";
+import { ProductVariantAttachService } from "./product-variant-attach.service";
 import { assertPublishable } from "./product.rules";
 import { resolveProductPricing } from "./product-pricing";
 import { validateVariantGroup, validateVariantGroupConfiguration, attributeKey, variantDimension } from "./product-variants";
 
 @Controller("admin/products")
 export class AdminProductsController {
-  constructor(private readonly auth: AuthService, private readonly db: DatabaseService, private readonly bulk: ProductBulkService, private readonly browse: AdminBrowseService, private readonly variantCopy: ProductVariantCopyService, private readonly variantDetach: ProductVariantDetachService) {}
+  constructor(private readonly auth: AuthService, private readonly db: DatabaseService, private readonly bulk: ProductBulkService, private readonly browse: AdminBrowseService, private readonly variantCopy: ProductVariantCopyService, private readonly variantDetach: ProductVariantDetachService, private readonly variantAttach: ProductVariantAttachService) {}
 
   @Get("selection") async selectProducts(@Query() input: ProductSelectionDto, @Req() request: AuthRequest) {
     const user = (await this.auth.authenticate(request))!;
@@ -63,6 +65,12 @@ export class AdminProductsController {
       .orderBy("p.createdAt", "ASC").addOrderBy("p.id", "ASC").getMany();
     if (!rows.some(row => row.id === groupId)) throw new NotFoundException("Không tìm thấy sản phẩm gốc của nhóm.");
     return { products: rows.map(row => ({ ...row.data, published: row.published, revision: row.revision })) };
+  }
+
+  @Post(":id/attach-variant") async attachVariant(@Param("id") id: string, @Body() input: ProductVariantAttachDto, @Req() request: AuthRequest) {
+    const user = (await this.auth.authenticate(request))!;
+    if (!["admin", "boss", "sales"].includes(user.role)) throw new ForbiddenException();
+    return this.variantAttach.apply(id, input, user.id);
   }
 
   @Patch(":id/variants") async configureVariants(@Param("id") id: string, @Body() input: ProductVariantGroupDto, @Req() request: AuthRequest) {

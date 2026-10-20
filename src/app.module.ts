@@ -32,6 +32,7 @@ import { AdminProductsController } from "./catalog/admin-products.controller";
 import { ProductBulkService } from "./catalog/product-bulk.service";
 import { ProductVariantCopyService } from "./catalog/product-variant-copy.service";
 import { ProductVariantDetachService } from "./catalog/product-variant-detach.service";
+import { ProductVariantAttachService } from "./catalog/product-variant-attach.service";
 import { NotificationsService } from "./notifications/notifications.service";
 import { NotificationsController } from "./notifications/notifications.controller";
 import { CustomerActionsController } from "./account/customer-actions.controller";
@@ -51,6 +52,6 @@ import { CategoryBulkService } from "./catalog/category-bulk.service";
     return { secret };
   } }), ThrottlerModule.forRoot([{ ttl: 60000, limit: 240 }])],
   controllers: [AuthController, CatalogController, CategoriesController, AdminCategoriesController, OrdersController, AdminController, AdminBrowseController, AccountController, CustomersController, MediaController, HealthController, ContactController, PricePolicyController, LedgerController, UserManagementController, KiotController, AdminProductsController, NotificationsController, CustomerActionsController, PublicContentController, AdminContentController, ReviewsController, AdminReviewsController, DocumentsController, ReportsController],
-  providers: [DatabaseService, SeedService, AuthService, CatalogQueryService, ProductBulkService, ProductVariantCopyService, ProductVariantDetachService, CategoryBulkService, OrdersService, AdminService, AdminBrowseService, AdminDashboardService, PricePolicyService, LedgerService, PasswordRecoveryService, KiotClient, KiotService, KiotReconciliationService, NotificationsService, { provide: APP_GUARD, useClass: ThrottlerGuard }]
+  providers: [DatabaseService, SeedService, AuthService, CatalogQueryService, ProductBulkService, ProductVariantCopyService, ProductVariantDetachService, ProductVariantAttachService, CategoryBulkService, OrdersService, AdminService, AdminBrowseService, AdminDashboardService, PricePolicyService, LedgerService, PasswordRecoveryService, KiotClient, KiotService, KiotReconciliationService, NotificationsService, { provide: APP_GUARD, useClass: ThrottlerGuard }]
 })
 export class AppModule {}
