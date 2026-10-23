@@ -16,6 +16,8 @@
     "import:fulco": "npm run build && node scripts/import-fulco.mjs",
     "import:hafele": "npm run build && node scripts/import-hafele.mjs",
     "test:hafele": "npm run build && node --test test/hafele-import.test.mjs",
+    "catalog:update-hafele-appliances": "npm run build && node scripts/update-hafele-appliances.mjs",
+    "test:hafele-appliances": "npm run build && node --test test/hafele-appliances-update.test.mjs",
     "catalog:normalize-fulco": "npm run build && node scripts/normalize-fulco-categories.mjs",
     "catalog:normalize-hafele-names": "npm run build && node scripts/normalize-hafele-categories.mjs",
     "catalog:repair-homepage": "npm run build && node scripts/repair-homepage.mjs",
